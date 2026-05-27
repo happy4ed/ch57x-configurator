@@ -14,16 +14,16 @@ header {
   display: flex; justify-content: space-between; align-items: center;
   padding: 16px 18px; border-bottom: 1px solid var(--border);
 }
-.brand h1 { margin: 0; font-size: 18px; }
-.dim { color: var(--dim); font-size: 12px; }
+.brand h1 { margin: 0; font-size: 20px; }
+.dim { color: var(--dim); font-size: 14px; }
 .hdr-actions { display: flex; align-items: center; gap: 12px; }
-.status { font-size: 13px; }
+.status { font-size: 15px; }
 .status.ok { color: var(--ok); }
 .status.off { color: var(--dim); }
 
 button, .filebtn {
   background: var(--tile); color: var(--text); border: 1px solid var(--border);
-  border-radius: 8px; padding: 8px 14px; font-size: 13px; cursor: pointer;
+  border-radius: 8px; padding: 8px 14px; font-size: 15px; cursor: pointer;
 }
 button:hover, .filebtn:hover { border-color: var(--primary); }
 button.primary { background: var(--primary); border-color: var(--primary); }
@@ -36,7 +36,7 @@ main { padding: 20px 0; }
 .profile-bar input { flex: 1; }
 input, select {
   background: var(--tile); color: var(--text); border: 1px solid var(--border);
-  border-radius: 8px; padding: 8px 10px; font-size: 13px;
+  border-radius: 8px; padding: 8px 10px; font-size: 15px;
 }
 
 .dev-cfg { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; font-size: 13px; }
@@ -133,7 +133,22 @@ progress { width: 160px; }
 .toggle { flex: 1; }
 .toggle.active { background: var(--primary); border-color: var(--primary); }
 .ed-actions { display: flex; gap: 8px; margin-top: 14px; }
-.hint { color: var(--dim); font-size: 12px; }
+#edCopy { margin-left: auto; }
+
+/* compact board inside the copy picker */
+#copyBoard { --cap: 64px; padding: 12px; gap: 12px; margin-top: 6px; }
+#copyBoard .key-row, #copyBoard .keys { gap: 8px; }
+#copyBoard .keycap { padding: 6px 7px; }
+#copyBoard .cap-n { font-size: 11px; }
+#copyBoard .cap-sum, #copyBoard .chip-sum { font-size: 11px; line-height: 1.2; }
+#copyBoard .dials { padding-left: 10px; gap: 10px; }
+#copyBoard .dial-slot { width: 48px; }
+#copyBoard .dial-circle { width: 38px; height: 38px; border-width: 2px; }
+#copyBoard .dial-circle.big { width: 50px; height: 50px; border-width: 3px; }
+#copyBoard .dial-circle span { font-size: 8px; }
+#copyBoard .dial-acts { width: 140px; gap: 4px; }
+#copyBoard .dial-chip { padding: 4px 7px; }
+.hint { color: var(--dim); font-size: 14px; }
 .dbg { margin-top: 14px; }
 .dbg pre { background: #0b0d11; border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-size: 11px; overflow-x: auto; color: #9fe6a0; white-space: pre-wrap; word-break: break-all; max-height: 280px; overflow-y: auto; }
 .re-send { display: flex; gap: 8px; margin: 8px 0; }

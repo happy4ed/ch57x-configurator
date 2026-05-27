@@ -253,6 +253,73 @@ function keyOptions(selectedCode) {
 }
 
 let editSteps = []; // working list of {mods, code} while editing a key sequence
+let copySource = null, copyLayer = 0; // copy-to-other-layer state
+const bindingAt = (layer, keyId) => profile.layers[layer][keyId] || null;
+
+function startCopy() {
+  copySource = readEditor();
+  setBinding(selected.keyId, copySource); // save current key first
+  copyLayer = curLayer;
+  renderCopyPicker();
+}
+
+function doCopyTo(keyId) {
+  if (copySource && copySource.type !== "none") profile.layers[copyLayer][keyId] = JSON.parse(JSON.stringify(copySource));
+  else delete profile.layers[copyLayer][keyId];
+  saveProfile();
+  toast(`복사됨 → 레이어 ${copyLayer + 1}`);
+  closeModal();
+}
+
+function renderCopyPicker() {
+  const ed = $("#editor");
+  ed.innerHTML = `
+    <h3>다른 레이어/키로 복사 <span class="dim">원본: ${esc(summarize(copySource))}</span></h3>
+    <div class="type-btns" id="copyLayers">
+      ${[0, 1, 2].map((l) => `<button type="button" class="type-btn ${l === copyLayer ? "active" : ""}" data-l="${l}">레이어 ${l + 1}</button>`).join("")}
+    </div>
+    <p class="hint">대상 레이어를 고른 뒤, 복사할 키/노브를 클릭하세요.</p>
+    <div id="copyBoard" class="device"><div id="copyKeys" class="keys"></div><div id="copyDials" class="dials"></div></div>
+    <div class="ed-actions"><button id="copyCancel">취소</button></div>`;
+  $("#copyLayers").querySelectorAll("[data-l]").forEach((b) => b.onclick = () => { copyLayer = Number(b.dataset.l); renderCopyPicker(); });
+  $("#copyCancel").onclick = () => renderEditor();
+  renderCopyBoard();
+}
+
+function renderCopyBoard() {
+  const keys = $("#copyKeys");
+  keys.innerHTML = "";
+  let n = 0;
+  for (const len of keyRows(NUM_BUTTONS)) {
+    const row = document.createElement("div"); row.className = "key-row";
+    for (let c = 0; c < len && n < NUM_BUTTONS; c++, n++) {
+      const id = buttonId(n), label = n + 1;
+      const d = document.createElement("button");
+      d.className = "keycap" + (bindingAt(copyLayer, id) ? " bound" : "");
+      d.innerHTML = `<span class="cap-n">${label}</span><span class="cap-sum">${esc(summarize(bindingAt(copyLayer, id)))}</span>`;
+      d.onclick = () => doCopyTo(id);
+      row.appendChild(d);
+    }
+    keys.appendChild(row);
+  }
+  const dials = $("#copyDials");
+  dials.innerHTML = ""; dials.style.display = NUM_KNOBS ? "flex" : "none";
+  for (let k = 0; k < NUM_KNOBS; k++) {
+    const wrap = document.createElement("div"); wrap.className = "dial-wrap";
+    const big = k === NUM_KNOBS - 1;
+    wrap.innerHTML = `<div class="dial-slot"><div class="dial-circle${big ? " big" : ""}"><span>노브 ${k + 1}</span></div></div>`;
+    const acts = document.createElement("div"); acts.className = "dial-acts";
+    for (const act of KNOB_ACTIONS) {
+      const id = knobId(k, act.a);
+      const chip = document.createElement("button");
+      chip.className = "dial-chip" + (bindingAt(copyLayer, id) ? " bound" : "");
+      chip.innerHTML = `<span class="chip-ic">${act.icon}</span><span class="chip-sum">${esc(summarize(bindingAt(copyLayer, id)))}</span>`;
+      chip.onclick = () => doCopyTo(id);
+      acts.appendChild(chip);
+    }
+    wrap.appendChild(acts); dials.appendChild(wrap);
+  }
+}
 
 function renderEditor() {
   const ed = $("#editor");
@@ -271,6 +338,7 @@ function renderEditor() {
     <div class="ed-actions">
       <button id="edSave" class="primary">적용</button>
       <button id="edClear">이 키 비우기</button>
+      <button id="edCopy">복사하기</button>
     </div>
     <details class="dbg"><summary>전송 패킷 미리보기</summary><pre id="edHex"></pre></details>
   `;
@@ -281,6 +349,7 @@ function renderEditor() {
   });
   $("#edSave").onclick = applyEditor;
   $("#edClear").onclick = () => { setBinding(selected.keyId, null); closeModal(); };
+  $("#edCopy").onclick = startCopy;
   renderEditorBody(type, b);
 }
 
@@ -390,7 +459,9 @@ function renderEditorBody(type, b) {
 }
 
 function readEditor() {
-  const type = $("#edType").value;
+  const tEl = $("#edType");
+  if (!tEl) return { type: "none" };
+  const type = tEl.value;
   const num = (id) => { const el = document.getElementById(id); return el ? Number(el.value) || 0 : 0; };
   if (type === "key") {
     syncSteps();
