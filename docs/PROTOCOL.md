@@ -98,11 +98,13 @@ Favorites=0x182 Calculator=0x192 ScreenLock=0x19E
 ## 8. 키보드 usage code 표
 `A=0x04` 부터 선언 순서대로 1씩 증가 (HID Usage Page 0x07). 구현은 `web/js/keycodes.js` 참조.
 
-## 9. 활성 레이어 전환 (live, 플래시 아님)
-```
-[03 a1 <layer>]   layer 1..3 (0 이면 1 로 보정). 즉시 적용, flash 저장 아님.
-```
-(공식 벤더 앱 `Send_SwLayer` 에서 확인: array[0]=0xa1, array[1]=layer.)
+## 9. 레이어 전환 (0xa1) — ⚠️ 장치별 상이, 주의
+`.NET` 앱 `Send_SwLayer` 는 `array[0]=0xa1, array[1]=layer` 로 보냄.
+**그러나 Qt 펌웨어(실측 장치)에서는:**
+- `03 a1 <layer>` 를 보내도 이후 `0xfa` 읽기의 응답 레이어가 안 바뀜(여전히 layer 1).
+- 오히려 일부 키 바인딩이 변형됨(예: 미디어 키가 0으로 지워짐) → **함부로 보내면 설정 손상 위험.**
+- Qt 앱의 `Widget::SendLayer` 는 장치에 명령을 보내지 않고 **UI 표시 레이어만** 전환(읽어둔 버퍼에서).
+→ 이 장치에서 **소프트웨어 레이어 전환은 미지원/위험.** 앱에서 자동 전송 금지(0xa1 버튼/읽기 루프 제거함).
 
 ## 10. 현재 설정 읽기 (READ)  ★Qt 벤더툴 KEY_PRO(widget.o) 디스어셈블로 확정
 **읽기 명령 opcode = `0xFA`.** (`.NET` MINI KeyBoard.exe 는 read 미구현이지만, Qt 툴 KEY_PRO 는 구현함.)
@@ -115,6 +117,9 @@ per-key 요청/응답 방식 (hidapi `hid_write`/`hid_read`):
   keyIndex = 1-based. 키 1..numKeys, 이어서 노브 16.. (§4 keyId 체계와 동일)
 응답(64B, input report id 3): 해당 keyIndex 의 바인딩 (write 포맷 §2/§3 과 대칭)
 ```
+- ⚠️ **읽기는 "현재 활성 레이어"만 가능.** 요청에 레이어 파라미터 없음 + §9 대로 소프트 레이어 전환 불가
+  → **레이어 2·3 은 되읽기 불가** (벤더 앱도 활성 레이어만 읽음). 응답 layer 바이트는 항상 01.
+- **LED 도 되읽기 불가** — `read_Hidkey_Data` 는 키/노브만 읽음. LED 상태 read 명령 없음.
 - `Widget::Read_configuration_clicked()` → `read_Hidkey_Data(3, keyCount, knobCount)` 호출.
 - `read_Hidkey_Data` 가 keyIndex 를 순회하며 매번 `03 FA ...` 요청 후 64B 응답을 읽어 키맵에 저장.
 - 응답 파싱 루프: 0x31(49)회 반복 바이트 복사, 레이어 블록 0xbb8(3000)/키 0x32(50) 간격으로 내부 구조에 저장.

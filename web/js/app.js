@@ -1,6 +1,6 @@
 import { KEYCODE_ORDER, MEDIA_CODES } from "./keycodes.js";
 import {
-  VENDOR_ID, PRODUCT_IDS, uploadProfile, readProfile, switchLayer, sendRawPacket, buttonId, knobId, previewHex,
+  VENDOR_ID, PRODUCT_IDS, uploadProfile, readProfile, sendRawPacket, buttonId, knobId, previewHex,
 } from "./protocol.js";
 
 // ---------- model ----------
@@ -113,17 +113,6 @@ function renderLayers() {
     b.onclick = () => { curLayer = l; selected = null; render(); };
     tabs.appendChild(b);
   }
-  const act = document.createElement("button");
-  act.id = "activateLayer";
-  act.className = "tab act";
-  act.textContent = "⚡ 키보드에 적용";
-  act.title = "이 레이어를 키보드의 활성 레이어로 즉시 전환 (0xa1)";
-  act.disabled = !device;
-  act.onclick = async () => {
-    try { await switchLayer(device, curLayer); toast(`키보드 활성 레이어 → ${curLayer + 1}`); }
-    catch (e) { toast("전환 실패: " + e.message); }
-  };
-  tabs.appendChild(act);
 }
 
 function tile(keyId, top, sub) {
@@ -342,21 +331,24 @@ async function reSend(hexStr) {
 
 async function download() {
   if (!device) return;
-  if (Object.values(profile.layers).some((l) => Object.keys(l).length) &&
-      !confirm("키보드에서 읽어온 설정으로 현재 프로필을 덮어쓸까요?")) return;
   const bar = $("#progress");
-  bar.style.display = "block"; bar.value = 0; bar.max = 3;
+  bar.style.display = "block"; bar.value = 0; bar.max = 1;
   try {
     const map = await readProfile(device, { onProgress: (i, n) => { bar.value = i; bar.max = n; } });
-    const layers = [{}, {}, {}];
-    let n = 0;
+    // group read bindings by the layer the device reported
+    const byLayer = {};
     for (const p of map.values()) {
       const li = Math.min(Math.max((p.layer || 1) - 1, 0), 2);
-      if (p.binding) { layers[li][p.keyId] = p.binding; n++; }
+      (byLayer[li] ||= {});
+      if (p.binding) byLayer[li][p.keyId] = p.binding;
     }
-    profile.layers = layers;
+    const seen = Object.keys(byLayer).map(Number);
+    if (!seen.length) { toast("응답 없음 (키보드 연결 확인)"); return; }
+    if (!confirm(`키보드에서 레이어 ${seen.map((l) => l + 1).join(", ")} 를 읽었습니다. 해당 레이어를 덮어쓸까요? (나머지 레이어는 유지)`)) return;
+    let n = 0;
+    for (const li of seen) { profile.layers[li] = byLayer[li]; n += Object.keys(byLayer[li]).length; }
     saveProfile(); selected = null; render();
-    toast(n ? `불러오기 완료: ${n}개 키 설정 읽음` : "응답 없음 (키보드 연결 확인)");
+    toast(`불러오기 완료: 레이어 ${seen.map((l) => l + 1).join(",")} · ${n}개 키`);
   } catch (e) {
     toast("불러오기 실패: " + e.message);
   } finally {
