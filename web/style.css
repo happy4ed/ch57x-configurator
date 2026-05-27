@@ -40,7 +40,13 @@ input, select {
 .dev-cfg { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; font-size: 13px; }
 .dev-cfg label { color: var(--text); display: inline-flex; align-items: center; gap: 4px; }
 .dev-cfg select { padding: 5px 8px; }
-.tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+/* board wraps layer-row + device + led so their right edges align with the device box */
+.board { width: fit-content; }
+.layer-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
+.layer-clear { margin-left: auto; display: flex; gap: 8px; }
+button.danger { background: #c0392b; border-color: #c0392b; }
+button.danger:hover { border-color: #e25; background: #d0402f; }
+.tabs { display: flex; gap: 8px; }
 .tab.active { background: var(--primary); border-color: var(--primary); }
 .tab.act { margin-left: auto; background: transparent; }
 .tab.act:hover:not(:disabled) { border-color: var(--ok); color: var(--ok); }

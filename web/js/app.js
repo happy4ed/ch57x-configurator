@@ -183,7 +183,9 @@ function dial(k) {
 function renderGrid() {
   const keys = $("#keys");
   keys.innerHTML = "";
-  keys.style.gridTemplateColumns = `repeat(${Math.min(NUM_BUTTONS, 3) || 1}, 1fr)`;
+  // macropads are 3 rows: columns = keyCount/3 (9→3×3, 12→4×3, 15→5×3)
+  const cols = Math.max(1, Math.ceil(NUM_BUTTONS / 3));
+  keys.style.gridTemplateColumns = `repeat(${cols}, var(--cap))`;
   for (let n = 0; n < NUM_BUTTONS; n++) keys.appendChild(keycap(buttonId(n), n + 1));
   const dials = $("#dials");
   dials.innerHTML = "";

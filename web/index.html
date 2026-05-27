@@ -24,8 +24,6 @@
         <input id="profileName" placeholder="프로필 이름">
         <button id="exportBtn">내보내기</button>
         <label class="filebtn">불러오기<input id="importInput" type="file" accept="application/json" hidden></label>
-        <button id="clearLayerBtn">레이어 비우기</button>
-        <button id="resetBtn">전체 비우기</button>
       </div>
       <div class="dev-cfg">
         <span class="dim">기기 구성</span>
@@ -33,17 +31,24 @@
         <label>노브 <select id="cfgKnobs"></select></label>
         <span class="dim">연결 시 자동감지 시도 (미지원 기기는 수동)</span>
       </div>
-      <div id="layers" class="tabs"></div>
-      <div id="device" class="device">
-        <div id="keys" class="keys"></div>
-        <div id="dials" class="dials"></div>
-      </div>
-
-      <div class="led-bar">
-        <span class="led-title">💡 LED <span id="ledLayerLabel" class="dim"></span></span>
-        <select id="ledMode"></select>
-        <select id="ledColor"></select>
-        <span class="dim">업로드 시 함께 저장됨</span>
+      <div class="board">
+        <div class="layer-row">
+          <div id="layers" class="tabs"></div>
+          <div class="layer-clear">
+            <button id="clearLayerBtn">레이어 비우기</button>
+            <button id="resetBtn" class="danger">전체 비우기</button>
+          </div>
+        </div>
+        <div id="device" class="device">
+          <div id="keys" class="keys"></div>
+          <div id="dials" class="dials"></div>
+        </div>
+        <div class="led-bar">
+          <span class="led-title">💡 LED <span id="ledLayerLabel" class="dim"></span></span>
+          <select id="ledMode"></select>
+          <select id="ledColor"></select>
+          <span class="dim">업로드 시 함께 저장됨</span>
+        </div>
       </div>
       <div class="upload-bar">
         <button id="downloadBtn" disabled>키보드에서 불러오기</button>
