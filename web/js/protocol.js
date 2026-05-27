@@ -126,6 +126,14 @@ export async function uploadProfile(device, profile, onProgress) {
       all.push(...msgs);
     }
   }
+  // LED per layer (off/white use color 0). See docs/PROTOCOL.md §6.
+  if (profile.led) {
+    for (let layer = 0; layer < profile.led.length; layer++) {
+      const { mode = 0, color = 0 } = profile.led[layer] || {};
+      const c = (mode === 0 || mode === 5) ? 0 : color;
+      all.push(...buildLedMessages(layer, mode, c));
+    }
+  }
   const dataLen = outputReportLength(device, REPORT_ID);
   for (let i = 0; i < all.length; i++) {
     await sendPacket(device, all[i], dataLen);
@@ -139,6 +147,11 @@ export async function sendRawPacket(device, bytes) {
   const pkt = new Uint8Array(64);
   pkt.set(bytes.slice(0, 64));
   await sendPacket(device, pkt, outputReportLength(device, REPORT_ID));
+}
+
+// Live-switch the keyboard's active layer (0xa1, not flash-stored). layer: 0-based.
+export async function switchLayer(device, layer) {
+  await sendRawPacket(device, Uint8Array.from([0x03, 0xa1, (layer + 1) || 1]));
 }
 
 // ---- READ (현재 설정 불러오기) — opcode 0xFA. See docs/PROTOCOL.md §10. ----

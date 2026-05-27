@@ -1,6 +1,6 @@
 import { KEYCODE_ORDER, MEDIA_CODES } from "./keycodes.js";
 import {
-  VENDOR_ID, PRODUCT_IDS, uploadProfile, readProfile, sendRawPacket, buttonId, knobId, previewHex,
+  VENDOR_ID, PRODUCT_IDS, uploadProfile, readProfile, switchLayer, sendRawPacket, buttonId, knobId, previewHex,
 } from "./protocol.js";
 
 // ---------- model ----------
@@ -14,12 +14,32 @@ const KNOB_ACTIONS = [
 ];
 const STORAGE_KEY = "ch57x.profile.v1";
 
+// LED modes/colors — see docs/PROTOCOL.md §6. code = (color<<4)|mode
+const LED_MODES = [
+  { v: 0, label: "끄기" },
+  { v: 1, label: "백라이트 (색상)" },
+  { v: 5, label: "백라이트 흰색" },
+  { v: 4, label: "누르면 켜짐 (색상)" },
+  { v: 2, label: "누르면 효과1 (색상)" },
+  { v: 3, label: "누르면 효과2 (색상)" },
+];
+const LED_COLORS = [
+  { v: 1, label: "빨강", css: "#e44" }, { v: 2, label: "주황", css: "#f80" },
+  { v: 3, label: "노랑", css: "#dd0" }, { v: 4, label: "초록", css: "#3c3" },
+  { v: 5, label: "청록", css: "#0cc" }, { v: 6, label: "파랑", css: "#46f" },
+  { v: 7, label: "보라", css: "#a4f" },
+];
+const ledUsesColor = (mode) => mode !== 0 && mode !== 5;
+
 const emptyProfile = () => ({
   name: "내 프로필",
   layers: Array.from({ length: NUM_LAYERS }, () => ({})),
+  led: Array.from({ length: NUM_LAYERS }, () => ({ mode: 0, color: 1 })),
 });
 
 let profile = loadProfile() || emptyProfile();
+// migrate older saved profiles
+if (!Array.isArray(profile.led)) profile.led = Array.from({ length: NUM_LAYERS }, () => ({ mode: 0, color: 1 }));
 let device = null;
 let curLayer = 0;
 let selected = null; // { keyId, title }
@@ -60,7 +80,19 @@ function render() {
   renderLayers();
   renderGrid();
   renderEditor();
+  renderLed();
   $("#profileName").value = profile.name;
+}
+
+function renderLed() {
+  const led = profile.led[curLayer] || { mode: 0, color: 1 };
+  const modeSel = $("#ledMode"), colorSel = $("#ledColor");
+  modeSel.innerHTML = LED_MODES.map((m) =>
+    `<option value="${m.v}" ${m.v === led.mode ? "selected" : ""}>${m.label}</option>`).join("");
+  colorSel.innerHTML = LED_COLORS.map((c) =>
+    `<option value="${c.v}" ${c.v === led.color ? "selected" : ""}>${c.label}</option>`).join("");
+  colorSel.disabled = !ledUsesColor(led.mode);
+  $("#ledLayerLabel").textContent = "레이어 " + (curLayer + 1);
 }
 
 function renderStatus() {
@@ -81,6 +113,17 @@ function renderLayers() {
     b.onclick = () => { curLayer = l; selected = null; render(); };
     tabs.appendChild(b);
   }
+  const act = document.createElement("button");
+  act.id = "activateLayer";
+  act.className = "tab act";
+  act.textContent = "⚡ 키보드에 적용";
+  act.title = "이 레이어를 키보드의 활성 레이어로 즉시 전환 (0xa1)";
+  act.disabled = !device;
+  act.onclick = async () => {
+    try { await switchLayer(device, curLayer); toast(`키보드 활성 레이어 → ${curLayer + 1}`); }
+    catch (e) { toast("전환 실패: " + e.message); }
+  };
+  tabs.appendChild(act);
 }
 
 function tile(keyId, top, sub) {
@@ -351,6 +394,7 @@ function importProfile(file) {
     try {
       const p = JSON.parse(r.result);
       if (!Array.isArray(p.layers)) throw new Error("형식 오류");
+      if (!Array.isArray(p.led)) p.led = Array.from({ length: NUM_LAYERS }, () => ({ mode: 0, color: 1 }));
       profile = p; saveProfile(); selected = null; render(); toast("불러옴");
     } catch (e) { toast("불러오기 실패: " + e.message); }
   };
@@ -370,6 +414,8 @@ function toast(msg) {
 $("#connectBtn").onclick = connect;
 $("#uploadBtn").onclick = upload;
 $("#downloadBtn").onclick = download;
+$("#ledMode").onchange = (e) => { profile.led[curLayer].mode = Number(e.target.value); saveProfile(); renderLed(); };
+$("#ledColor").onchange = (e) => { profile.led[curLayer].color = Number(e.target.value); saveProfile(); };
 $("#exportBtn").onclick = exportProfile;
 $("#importInput").onchange = (e) => e.target.files[0] && importProfile(e.target.files[0]);
 $("#resetBtn").onclick = () => { if (confirm("현재 프로필을 모두 비울까요?")) { profile = emptyProfile(); saveProfile(); selected = null; render(); } };
