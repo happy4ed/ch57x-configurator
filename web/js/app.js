@@ -4,9 +4,17 @@ import {
 } from "./protocol.js";
 
 // ---------- model ----------
-let NUM_BUTTONS = 9;   // adjusted from device on connect (readDeviceInfo)
-let NUM_KNOBS = 3;
+const DEVCFG_KEY = "ch57x.device.v1";
+function loadDevCfg() { try { return JSON.parse(localStorage.getItem(DEVCFG_KEY)); } catch { return null; } }
+const devCfg = loadDevCfg() || { keyCount: 9, knobCount: 3 };
+let NUM_BUTTONS = devCfg.keyCount;   // manual selector, or auto-detected on connect
+let NUM_KNOBS = devCfg.knobCount;
 const NUM_LAYERS = 3;
+function setDeviceCounts(keyCount, knobCount) {
+  NUM_BUTTONS = keyCount; NUM_KNOBS = knobCount;
+  devCfg.keyCount = keyCount; devCfg.knobCount = knobCount;
+  localStorage.setItem(DEVCFG_KEY, JSON.stringify(devCfg));
+}
 const KNOB_ACTIONS = [
   { a: 0, icon: "↺", name: "반시계" },
   { a: 1, icon: "⬇", name: "누름" },
@@ -77,11 +85,19 @@ const $ = (sel) => document.querySelector(sel);
 
 function render() {
   renderStatus();
+  renderDeviceCfg();
   renderLayers();
   renderGrid();
   renderEditor();
   renderLed();
   $("#profileName").value = profile.name;
+}
+
+function renderDeviceCfg() {
+  const ks = $("#cfgKeys"), ns = $("#cfgKnobs");
+  const opts = (n0, n1, sel) => { let s = ""; for (let i = n0; i <= n1; i++) s += `<option value="${i}" ${i === sel ? "selected" : ""}>${i}</option>`; return s; };
+  ks.innerHTML = opts(1, 15, NUM_BUTTONS);
+  ns.innerHTML = opts(0, 4, NUM_KNOBS);
 }
 
 function renderLed() {
@@ -269,15 +285,14 @@ async function connect() {
     renderDiag();
     $("#reWrap").style.display = "block";
     toast("연결됨: " + device.productName);
-    // detect physical key/knob count and fit the grid
+    // best-effort auto-detect of physical key/knob count (some firmware ignores 0xfb)
     const info = await readDeviceInfo(device);
     if (info && info.keyCount >= 1 && info.keyCount <= 15 && info.knobCount <= 4) {
-      NUM_BUTTONS = info.keyCount; NUM_KNOBS = info.knobCount;
+      setDeviceCounts(info.keyCount, info.knobCount);
       selected = null; render();
       toast(`기기 감지: 키 ${NUM_BUTTONS}개 · 노브 ${NUM_KNOBS}개`);
-    } else {
-      toast("기기 개수 자동감지 실패 — 기본값(9키·3노브) 사용");
     }
+    // else: keep manual "기기 구성" selection (silent)
   } catch (e) { toast("연결 실패: " + e.message); }
 }
 
@@ -419,6 +434,8 @@ $("#uploadBtn").onclick = upload;
 $("#downloadBtn").onclick = download;
 $("#ledMode").onchange = (e) => { profile.led[curLayer].mode = Number(e.target.value); saveProfile(); renderLed(); };
 $("#ledColor").onchange = (e) => { profile.led[curLayer].color = Number(e.target.value); saveProfile(); };
+$("#cfgKeys").onchange = (e) => { setDeviceCounts(Number(e.target.value), NUM_KNOBS); selected = null; render(); };
+$("#cfgKnobs").onchange = (e) => { setDeviceCounts(NUM_BUTTONS, Number(e.target.value)); selected = null; render(); };
 $("#exportBtn").onclick = exportProfile;
 $("#importInput").onchange = (e) => e.target.files[0] && importProfile(e.target.files[0]);
 $("#resetBtn").onclick = () => { if (confirm("현재 프로필을 모두 비울까요?")) { profile = emptyProfile(); saveProfile(); selected = null; render(); } };
