@@ -38,6 +38,26 @@
         <summary>장치 진단 (REPORT_ID 확정용)</summary>
         <pre id="diag"></pre>
       </details>
+
+      <details id="reWrap" class="dbg" style="display:none">
+        <summary>🔬 RE 콘솔 — 현재 설정 읽기 실험 (input report id 3 탐색)</summary>
+        <p class="hint">키보드가 보내는 input 리포트를 실시간 표시합니다. 아래로 후보 명령을 보내고
+          응답이 오는지 관찰하세요. (보내는 바이트는 03 으로 시작 — 03 은 리포트ID로 자동 처리)</p>
+        <div class="re-send">
+          <input id="reHex" placeholder="예: 03 fb 00  또는  03 f1 01" value="03 fb 00">
+          <button id="reSend">전송</button>
+          <button id="reClear">로그 지우기</button>
+        </div>
+        <div class="re-presets">
+          <button class="re-probe" data-hex="03 fb 00">03 fb (읽기?)</button>
+          <button class="re-probe" data-hex="03 f1 00">03 f1</button>
+          <button class="re-probe" data-hex="03 fc 00">03 fc</button>
+          <button class="re-probe" data-hex="03 a1 00">03 a1</button>
+          <button class="re-probe" data-hex="03 fe 01 01">03 fe 01 01 (키1 조회?)</button>
+          <button class="re-probe" data-hex="03 fd fe ff">03 fd fe ff (종료)</button>
+        </div>
+        <pre id="reLog">대기 중… (연결 후 키를 눌러보거나 명령을 전송하세요)</pre>
+      </details>
     </section>
 
     <aside id="editor" class="panel editor"></aside>

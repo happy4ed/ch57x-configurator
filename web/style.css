@@ -65,7 +65,11 @@ progress { width: 160px; }
 .ed-actions { display: flex; gap: 8px; margin-top: 14px; }
 .hint { color: var(--dim); font-size: 12px; }
 .dbg { margin-top: 14px; }
-.dbg pre { background: #0b0d11; border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-size: 11px; overflow-x: auto; color: #9fe6a0; }
+.dbg pre { background: #0b0d11; border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-size: 11px; overflow-x: auto; color: #9fe6a0; white-space: pre-wrap; word-break: break-all; max-height: 280px; overflow-y: auto; }
+.re-send { display: flex; gap: 8px; margin: 8px 0; }
+.re-send input { flex: 1; font-family: monospace; }
+.re-presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.re-probe { font-size: 11px; padding: 5px 9px; font-family: monospace; }
 
 .toast {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);

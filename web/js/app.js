@@ -1,6 +1,6 @@
 import { KEYCODE_ORDER, MEDIA_CODES } from "./keycodes.js";
 import {
-  VENDOR_ID, PRODUCT_IDS, uploadProfile, buttonId, knobId, previewHex,
+  VENDOR_ID, PRODUCT_IDS, uploadProfile, sendRawPacket, buttonId, knobId, previewHex,
 } from "./protocol.js";
 
 // ---------- model ----------
@@ -229,8 +229,10 @@ async function connect() {
     device = devices[0];
     if (!device.opened) await device.open();
     device.addEventListener?.("disconnect", () => { device = null; render(); });
+    device.addEventListener?.("inputreport", onInputReport);
     render();
     renderDiag();
+    $("#reWrap").style.display = "block";
     toast("연결됨: " + device.productName);
   } catch (e) { toast("연결 실패: " + e.message); }
 }
@@ -261,6 +263,37 @@ function renderDiag() {
     : "✗ vendor 인터페이스에 input/feature 없음 — 현재 설정 읽기 불가 (펌웨어 한계)"}`);
   pre.textContent = lines.join("\n");
   wrap.style.display = "block";
+}
+
+// ---------- RE console: listen to input reports + send probes ----------
+const reLog = [];
+const hex = (u8) => Array.from(u8).map((b) => b.toString(16).padStart(2, "0")).join(" ");
+
+function onInputReport(e) {
+  const bytes = new Uint8Array(e.data.buffer);
+  const t = new Date().toLocaleTimeString();
+  reLog.unshift(`◀ [${t}] IN  id ${e.reportId}: ${hex(bytes)}`);
+  renderReLog();
+}
+
+function renderReLog() {
+  const pre = $("#reLog");
+  if (pre) pre.textContent = reLog.slice(0, 60).join("\n") || "대기 중…";
+}
+
+function parseHex(s) {
+  return s.trim().split(/[\s,]+/).filter(Boolean).map((x) => parseInt(x, 16) & 0xff);
+}
+
+async function reSend(hexStr) {
+  if (!device) { toast("먼저 연결하세요"); return; }
+  try {
+    const bytes = parseHex(hexStr);
+    if (!bytes.length) return;
+    await sendRawPacket(device, Uint8Array.from(bytes));
+    reLog.unshift(`▶ [${new Date().toLocaleTimeString()}] OUT id 3: ${hex(Uint8Array.from(bytes))}`);
+    renderReLog();
+  } catch (err) { toast("전송 실패: " + err.message); }
 }
 
 async function upload() {
@@ -315,6 +348,11 @@ $("#exportBtn").onclick = exportProfile;
 $("#importInput").onchange = (e) => e.target.files[0] && importProfile(e.target.files[0]);
 $("#resetBtn").onclick = () => { if (confirm("현재 프로필을 모두 비울까요?")) { profile = emptyProfile(); saveProfile(); selected = null; render(); } };
 $("#profileName").oninput = (e) => { profile.name = e.target.value; saveProfile(); };
+$("#reSend").onclick = () => reSend($("#reHex").value);
+$("#reClear").onclick = () => { reLog.length = 0; renderReLog(); };
+document.querySelectorAll(".re-probe").forEach((b) => {
+  b.onclick = () => { $("#reHex").value = b.dataset.hex; reSend(b.dataset.hex); };
+});
 document.addEventListener("input", (e) => { if (e.target.closest("#editor")) refreshHex(); });
 
 render();

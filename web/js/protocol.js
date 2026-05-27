@@ -134,6 +134,13 @@ export async function uploadProfile(device, profile, onProgress) {
   return all.length;
 }
 
+// RE helper: send an arbitrary packet (full bytes incl. leading 0x03) for protocol probing.
+export async function sendRawPacket(device, bytes) {
+  const pkt = new Uint8Array(64);
+  pkt.set(bytes.slice(0, 64));
+  await sendPacket(device, pkt, outputReportLength(device, REPORT_ID));
+}
+
 // Convenience: build messages as hex strings (for the dry-run / 디버그 view).
 export function previewHex(keyId, layer, binding) {
   return buildKeyMessages(keyId, layer, binding).map((p) =>
