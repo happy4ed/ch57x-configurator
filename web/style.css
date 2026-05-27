@@ -135,24 +135,23 @@ progress { width: 160px; }
 .ed-actions { display: flex; gap: 8px; margin-top: 14px; }
 #edCopy { margin-left: auto; }
 
-/* copy picker: wider modal + big layer buttons */
-.modal.copywide .modal-card { width: 860px; }
-#copyLayers { gap: 10px; margin-bottom: 16px; }
-#copyLayers .type-btn { flex: 1; font-size: 18px; padding: 14px 0; }
+/* copy picker: wider modal (layer buttons keep normal .type-btn size) */
+.modal.copywide .modal-card { width: 920px; }
+#copyLayers { margin-bottom: 14px; }
 
-/* compact board inside the copy picker */
-#copyBoard { --cap: 80px; padding: 14px; gap: 12px; margin-top: 6px; }
-#copyBoard .key-row, #copyBoard .keys { gap: 8px; }
-#copyBoard .keycap { padding: 6px 7px; }
-#copyBoard .cap-n { font-size: 12px; }
-#copyBoard .cap-sum, #copyBoard .chip-sum { font-size: 12px; line-height: 1.25; }
-#copyBoard .dials { padding-left: 10px; gap: 10px; }
-#copyBoard .dial-slot { width: 48px; }
-#copyBoard .dial-circle { width: 38px; height: 38px; border-width: 2px; }
-#copyBoard .dial-circle.big { width: 50px; height: 50px; border-width: 3px; }
-#copyBoard .dial-circle span { font-size: 8px; }
-#copyBoard .dial-acts { width: 140px; gap: 4px; }
-#copyBoard .dial-chip { padding: 4px 7px; }
+/* board inside the copy picker — ~1.5× so knob actions are tall enough */
+#copyBoard { --cap: 120px; padding: 16px; gap: 12px; margin-top: 6px; }
+#copyBoard .key-row, #copyBoard .keys { gap: 10px; }
+#copyBoard .keycap { padding: 8px 9px; }
+#copyBoard .cap-n { font-size: 13px; }
+#copyBoard .cap-sum, #copyBoard .chip-sum { font-size: 13px; line-height: 1.25; }
+#copyBoard .dials { padding-left: 12px; gap: 12px; }
+#copyBoard .dial-slot { width: 72px; }
+#copyBoard .dial-circle { width: 57px; height: 57px; border-width: 3px; }
+#copyBoard .dial-circle.big { width: 76px; height: 76px; border-width: 4px; }
+#copyBoard .dial-circle span { font-size: 11px; }
+#copyBoard .dial-acts { width: 210px; gap: 6px; }
+#copyBoard .dial-chip { padding: 6px 9px; }
 .hint { color: var(--dim); font-size: 14px; }
 .dbg { margin-top: 14px; }
 .dbg pre { background: #0b0d11; border: 1px solid var(--border); border-radius: 8px; padding: 10px; font-size: 11px; overflow-x: auto; color: #9fe6a0; white-space: pre-wrap; word-break: break-all; max-height: 280px; overflow-y: auto; }
