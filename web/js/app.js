@@ -84,7 +84,15 @@ function summarize(b) {
   }
   if (b.type === "text") return "📝 " + (b.text ? `"${b.text.slice(0, 14)}${b.text.length > 14 ? "…" : ""}"` : "");
   if (b.type === "media") return "🎵 " + (MEDIA_CODES[b.media]?.label || b.media);
-  if (b.type === "mouse") return "🖱 " + b.action;
+  if (b.type === "mouse") {
+    const mod = b.mod ? b.mod + "+" : "";
+    const btn = (b.buttons || []).map((x) => ({ Left: "L", Right: "R", Middle: "M" }[x] || x)).join("");
+    if (b.action === "wheel") return `🖱 ${mod}휠 ${(b.delta ?? 1) >= 0 ? "↑위" : "↓아래"}`;
+    if (b.action === "click") return `🖱 ${mod}클릭 ${btn}`;
+    if (b.action === "move") return `🖱 ${mod}이동 ${b.dx || 0},${b.dy || 0}`;
+    if (b.action === "drag") return `🖱 ${mod}드래그 ${btn} ${b.dx || 0},${b.dy || 0}`;
+    return "🖱 " + b.action;
+  }
   return "—";
 }
 
@@ -147,6 +155,11 @@ function renderLayers() {
 function selectKey(keyId, title) {
   selected = { keyId, title };
   renderGrid(); renderEditor();
+  $("#modal").hidden = false;
+}
+function closeModal() {
+  $("#modal").hidden = true;
+  selected = null; renderGrid();
 }
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -228,7 +241,7 @@ function renderEditor() {
     renderEditorBody(btn.dataset.type, b);
   });
   $("#edSave").onclick = applyEditor;
-  $("#edClear").onclick = () => setBinding(selected.keyId, null);
+  $("#edClear").onclick = () => { setBinding(selected.keyId, null); closeModal(); };
   renderEditorBody(type, b);
 }
 
@@ -264,12 +277,23 @@ function renderMouseBody(b) {
   let f = "";
   if (act === "click" || act === "drag") f += `<div class="mods">${btns}</div>`;
   if (act === "move" || act === "drag") f += fld("edDx", "dx", b.dx) + fld("edDy", "dy", b.dy);
-  if (act === "wheel") f += fld("edDelta", "휠(+위/−아래)", b.delta);
+  if (act === "wheel") {
+    const up = (b.delta ?? 1) >= 0;
+    f += `<label>방향</label><div class="toggle-row">
+      <button type="button" id="whUp" class="toggle ${up ? "active" : ""}">↑ 위</button>
+      <button type="button" id="whDn" class="toggle ${up ? "" : "active"}">↓ 아래</button></div>`;
+  }
+  const actLabel = { click: "클릭", wheel: "휠", move: "이동", drag: "드래그" };
   body.innerHTML = `
-    <label>동작 <select id="edMAct">${["click","wheel","move","drag"].map(a=>`<option ${act===a?"selected":""}>${a}</option>`).join("")}</select></label>
+    <label>동작 <select id="edMAct">${["click","wheel","move","drag"].map(a=>`<option value="${a}" ${act===a?"selected":""}>${actLabel[a]}</option>`).join("")}</select></label>
     <label>수정자 <select id="edMMod">${modOpts}</select></label>
     ${f}`;
   $("#edMAct").onchange = () => { const cur = readEditor(); cur.action = $("#edMAct").value; renderMouseBody(cur); refreshHex(); };
+  const up = $("#whUp"), dn = $("#whDn");
+  if (up) {
+    up.onclick = () => { up.classList.add("active"); dn.classList.remove("active"); refreshHex(); };
+    dn.onclick = () => { dn.classList.add("active"); up.classList.remove("active"); refreshHex(); };
+  }
 }
 
 function renderEditorBody(type, b) {
@@ -318,12 +342,14 @@ function readEditor() {
   }
   if (type === "media") return { type: "media", media: $("#edMedia").value };
   if (type === "mouse") {
+    const action = $("#edMAct").value;
     return {
       type: "mouse",
-      action: $("#edMAct").value,
+      action,
       mod: $("#edMMod")?.value || "",
       buttons: [...document.querySelectorAll("[data-mbtn]:checked")].map((e) => e.dataset.mbtn),
-      dx: num("edDx"), dy: num("edDy"), delta: num("edDelta"),
+      dx: num("edDx"), dy: num("edDy"),
+      delta: action === "wheel" ? ($("#whUp")?.classList.contains("active") ? 1 : -1) : 0,
     };
   }
   return { type: "none" };
@@ -341,6 +367,7 @@ function refreshHex() {
 function applyEditor() {
   try {
     setBinding(selected.keyId, readEditor());
+    closeModal();
     toast("적용됨");
   } catch (e) { toast("⚠ " + e.message); }
 }
@@ -521,6 +548,9 @@ $("#ledMode").onchange = (e) => { profile.led[curLayer].mode = Number(e.target.v
 $("#ledColor").onchange = (e) => { profile.led[curLayer].color = Number(e.target.value); saveProfile(); };
 $("#cfgKeys").onchange = (e) => { setDeviceCounts(Number(e.target.value), NUM_KNOBS); selected = null; render(); };
 $("#cfgKnobs").onchange = (e) => { setDeviceCounts(NUM_BUTTONS, Number(e.target.value)); selected = null; render(); };
+$("#modalClose").onclick = closeModal;
+$("#modal").onclick = (e) => { if (e.target.id === "modal") closeModal(); };
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#modal").hidden) closeModal(); });
 $("#exportBtn").onclick = exportProfile;
 $("#importInput").onchange = (e) => e.target.files[0] && importProfile(e.target.files[0]);
 $("#clearLayerBtn").onclick = () => { if (confirm(`레이어 ${curLayer + 1} 의 모든 키를 비울까요?`)) { profile.layers[curLayer] = {}; saveProfile(); selected = null; render(); } };

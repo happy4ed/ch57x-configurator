@@ -81,9 +81,14 @@
         <pre id="reLog">대기 중… (연결 후 키를 눌러보거나 명령을 전송하세요)</pre>
       </details>
     </section>
-
-    <aside id="editor" class="panel editor"></aside>
   </main>
+
+  <div id="modal" class="modal" hidden>
+    <div class="modal-card panel editor">
+      <button id="modalClose" class="modal-x" title="닫기">✕</button>
+      <div id="editor"></div>
+    </div>
+  </div>
 
   <div id="toast" class="toast"></div>
   <script type="module" src="js/app.js"></script>
