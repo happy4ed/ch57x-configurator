@@ -1,0 +1,313 @@
+import { KEYCODE_ORDER, MEDIA_CODES } from "./keycodes.js";
+import {
+  VENDOR_ID, PRODUCT_IDS, uploadProfile, buttonId, knobId, previewHex,
+} from "./protocol.js";
+
+// ---------- model ----------
+const NUM_BUTTONS = 9;
+const NUM_KNOBS = 3;
+const NUM_LAYERS = 3;
+const KNOB_ACTIONS = [
+  { a: 0, icon: "↺", name: "반시계" },
+  { a: 1, icon: "⬇", name: "누름" },
+  { a: 2, icon: "↻", name: "시계" },
+];
+const STORAGE_KEY = "ch57x.profile.v1";
+
+const emptyProfile = () => ({
+  name: "내 프로필",
+  layers: Array.from({ length: NUM_LAYERS }, () => ({})),
+});
+
+let profile = loadProfile() || emptyProfile();
+let device = null;
+let curLayer = 0;
+let selected = null; // { keyId, title }
+
+// ---------- persistence ----------
+function saveProfile() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(profile));
+}
+function loadProfile() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch { return null; }
+}
+const bindingOf = (keyId) => profile.layers[curLayer][keyId] || null;
+function setBinding(keyId, b) {
+  if (!b || b.type === "none") delete profile.layers[curLayer][keyId];
+  else profile.layers[curLayer][keyId] = b;
+  saveProfile();
+  render();
+}
+
+// ---------- summaries ----------
+function summarize(b) {
+  if (!b) return "—";
+  if (b.type === "key") {
+    return (b.steps || []).map((s) =>
+      [...(s.mods || []), s.code].filter(Boolean).join("+")
+    ).join(", ") || "—";
+  }
+  if (b.type === "media") return "🎵 " + (MEDIA_CODES[b.media]?.label || b.media);
+  if (b.type === "mouse") return "🖱 " + b.action;
+  return "—";
+}
+
+// ---------- rendering ----------
+const $ = (sel) => document.querySelector(sel);
+
+function render() {
+  renderStatus();
+  renderLayers();
+  renderGrid();
+  renderEditor();
+  $("#profileName").value = profile.name;
+}
+
+function renderStatus() {
+  const s = $("#status");
+  if (device) { s.textContent = "● 연결됨"; s.className = "status ok"; }
+  else { s.textContent = "○ 미연결"; s.className = "status off"; }
+  $("#uploadBtn").disabled = !device;
+}
+
+function renderLayers() {
+  const tabs = $("#layers");
+  tabs.innerHTML = "";
+  for (let l = 0; l < NUM_LAYERS; l++) {
+    const b = document.createElement("button");
+    b.textContent = "레이어 " + (l + 1);
+    b.className = "tab" + (l === curLayer ? " active" : "");
+    b.onclick = () => { curLayer = l; selected = null; render(); };
+    tabs.appendChild(b);
+  }
+}
+
+function tile(keyId, top, sub) {
+  const d = document.createElement("button");
+  d.className = "tile" + (selected?.keyId === keyId ? " sel" : "");
+  d.innerHTML = `<span class="tile-top">${top}</span><span class="tile-sub">${sub}</span>`;
+  d.onclick = () => { selected = { keyId, title: top }; renderGrid(); renderEditor(); };
+  return d;
+}
+
+function renderGrid() {
+  const grid = $("#buttonGrid");
+  grid.innerHTML = "";
+  for (let n = 0; n < NUM_BUTTONS; n++) {
+    const id = buttonId(n);
+    grid.appendChild(tile(id, "버튼 " + (n + 1), summarize(bindingOf(id))));
+  }
+  const knobs = $("#knobPanel");
+  knobs.innerHTML = "";
+  for (let k = 0; k < NUM_KNOBS; k++) {
+    const wrap = document.createElement("div");
+    wrap.className = "knob";
+    const h = document.createElement("div");
+    h.className = "knob-h";
+    h.textContent = "노브 " + (k + 1);
+    wrap.appendChild(h);
+    for (const act of KNOB_ACTIONS) {
+      const id = knobId(k, act.a);
+      wrap.appendChild(tile(id, `${act.icon} ${act.name}`, summarize(bindingOf(id))));
+    }
+    knobs.appendChild(wrap);
+  }
+}
+
+function keyOptions(selectedCode) {
+  return ['<option value="">(없음)</option>'].concat(
+    KEYCODE_ORDER.map(([name, label]) =>
+      `<option value="${name}" ${name === selectedCode ? "selected" : ""}>${label} (${name})</option>`)
+  ).join("");
+}
+
+function renderEditor() {
+  const ed = $("#editor");
+  if (!selected) { ed.innerHTML = `<p class="hint">키나 노브 동작을 클릭해 설정하세요.</p>`; return; }
+  const b = bindingOf(selected.keyId) || { type: "none" };
+  const type = b.type || "none";
+
+  ed.innerHTML = `
+    <h3>${selected.title} <span class="dim">· 레이어 ${curLayer + 1}</span></h3>
+    <label>동작 종류
+      <select id="edType">
+        <option value="none" ${type==="none"?"selected":""}>없음 (초기화)</option>
+        <option value="key"   ${type==="key"?"selected":""}>키보드</option>
+        <option value="media" ${type==="media"?"selected":""}>미디어</option>
+        <option value="mouse" ${type==="mouse"?"selected":""}>마우스</option>
+      </select>
+    </label>
+    <div id="edBody"></div>
+    <div class="ed-actions">
+      <button id="edSave" class="primary">적용</button>
+      <button id="edClear">이 키 비우기</button>
+    </div>
+    <details class="dbg"><summary>전송 패킷 미리보기</summary><pre id="edHex"></pre></details>
+  `;
+  $("#edType").onchange = () => renderEditorBody($("#edType").value, b);
+  $("#edSave").onclick = applyEditor;
+  $("#edClear").onclick = () => setBinding(selected.keyId, null);
+  renderEditorBody(type, b);
+}
+
+function renderEditorBody(type, b) {
+  const body = $("#edBody");
+  if (type === "key") {
+    const step = (b.type === "key" && b.steps?.[0]) || { mods: [], code: "" };
+    const mk = (m) => `<label class="chk"><input type="checkbox" data-mod="${m}" ${step.mods?.includes(m)?"checked":""}>${m}</label>`;
+    body.innerHTML = `
+      <div class="mods">${["Ctrl","Shift","Alt","Win"].map(mk).join("")}</div>
+      <label>키 <select id="edKey">${keyOptions(step.code)}</select></label>
+      <label>지연(ms, 0=없음) <input id="edDelay" type="number" min="0" max="6000" value="${b.delay||0}"></label>
+      <p class="hint">단축키 한 조합을 설정합니다. (다단계 매크로는 추후 추가)</p>`;
+  } else if (type === "media") {
+    const opts = Object.entries(MEDIA_CODES).map(([k, v]) =>
+      `<option value="${k}" ${b.media===k?"selected":""}>${v.label} (${k})</option>`).join("");
+    body.innerHTML = `<label>미디어 키 <select id="edMedia">${opts}</select></label>`;
+  } else if (type === "mouse") {
+    const act = b.action || "click";
+    const mk = (m) => `<label class="chk"><input type="checkbox" data-mbtn="${m}" ${b.buttons?.includes(m)?"checked":""}>${m}</label>`;
+    body.innerHTML = `
+      <label>동작 <select id="edMAct">
+        ${["click","wheel","move","drag"].map(a=>`<option ${act===a?"selected":""}>${a}</option>`).join("")}
+      </select></label>
+      <div class="mods">${["Left","Right","Middle"].map(mk).join("")}</div>
+      <label>dx <input id="edDx" type="number" value="${b.dx||0}"></label>
+      <label>dy <input id="edDy" type="number" value="${b.dy||0}"></label>
+      <label>휠 delta <input id="edDelta" type="number" value="${b.delta||0}"></label>`;
+  } else {
+    body.innerHTML = `<p class="hint">이 키는 비어 있습니다 (업로드 시 펌웨어 기본값).</p>`;
+  }
+  refreshHex();
+}
+
+function readEditor() {
+  const type = $("#edType").value;
+  if (type === "key") {
+    const mods = [...document.querySelectorAll('[data-mod]:checked')].map((e) => e.dataset.mod);
+    const code = $("#edKey").value;
+    if (!mods.length && !code) return { type: "none" };
+    return { type: "key", steps: [{ mods, code: code || null }], delay: Number($("#edDelay").value) || 0 };
+  }
+  if (type === "media") return { type: "media", media: $("#edMedia").value };
+  if (type === "mouse") {
+    return {
+      type: "mouse",
+      action: $("#edMAct").value,
+      buttons: [...document.querySelectorAll('[data-mbtn]:checked')].map((e) => e.dataset.mbtn),
+      dx: Number($("#edDx").value) || 0,
+      dy: Number($("#edDy").value) || 0,
+      delta: Number($("#edDelta").value) || 0,
+    };
+  }
+  return { type: "none" };
+}
+
+function refreshHex() {
+  const pre = $("#edHex");
+  if (!pre || !selected) return;
+  try {
+    const b = readEditor();
+    pre.textContent = previewHex(selected.keyId, curLayer, b).join("\n") || "(전송 없음)";
+  } catch (e) { pre.textContent = "⚠ " + e.message; }
+}
+
+function applyEditor() {
+  try {
+    setBinding(selected.keyId, readEditor());
+    toast("적용됨");
+  } catch (e) { toast("⚠ " + e.message); }
+}
+
+// ---------- WebHID ----------
+async function connect() {
+  if (!("hid" in navigator)) { toast("이 브라우저는 WebHID 미지원 (Chrome/Edge 사용)"); return; }
+  try {
+    const filters = PRODUCT_IDS.map((productId) => ({ vendorId: VENDOR_ID, productId }));
+    const devices = await navigator.hid.requestDevice({ filters });
+    if (!devices.length) return;
+    device = devices[0];
+    if (!device.opened) await device.open();
+    device.addEventListener?.("disconnect", () => { device = null; render(); });
+    render();
+    renderDiag();
+    toast("연결됨: " + device.productName);
+  } catch (e) { toast("연결 실패: " + e.message); }
+}
+
+// Dump HID collections so we can confirm sendReport() args (REPORT_ID).
+function renderDiag() {
+  const wrap = $("#diagWrap"), pre = $("#diag");
+  if (!device) { wrap.style.display = "none"; return; }
+  const lines = [`${device.productName}  (VID ${device.vendorId.toString(16)} / PID ${device.productId.toString(16)})`];
+  let verdict = "출력 리포트를 못 찾음 → WebUSB 경로 검토 필요";
+  for (const c of device.collections) {
+    const up = c.usagePage, vendorDef = up >= 0xff00;
+    lines.push(`\ncollection: usagePage 0x${up.toString(16)} usage 0x${c.usage.toString(16)}${vendorDef ? "  ← vendor-defined" : ""}`);
+    const outs = c.outputReports || [];
+    lines.push(`  output reports: ${outs.length ? outs.map(r => `id ${r.reportId} (${r.items?.reduce((n,i)=>n+(i.reportCount||0),0)} fields)`).join(", ") : "없음"}`);
+    for (const r of outs) {
+      if (vendorDef && r.reportId === 3) verdict = "✅ id 3 발견 → REPORT_ID = 3 (현재 기본값 그대로 OK)";
+      else if (vendorDef && r.reportId === 0 && verdict.startsWith("출력")) verdict = "⚠ id 0 → protocol.js 의 REPORT_ID 를 0 으로 바꾸세요";
+    }
+  }
+  lines.push(`\n판정: ${verdict}`);
+  pre.textContent = lines.join("\n");
+  wrap.style.display = "block";
+}
+
+async function upload() {
+  if (!device) return;
+  const bar = $("#progress");
+  bar.style.display = "block";
+  try {
+    const n = await uploadProfile(device, profile, (i, total) => {
+      bar.value = i; bar.max = total;
+    });
+    toast(`업로드 완료 (${n} 패킷, 전체 레이어 전송)`);
+  } catch (e) {
+    toast("업로드 실패: " + e.message);
+  } finally {
+    setTimeout(() => { bar.style.display = "none"; }, 800);
+  }
+}
+
+// ---------- profile import/export ----------
+function exportProfile() {
+  const blob = new Blob([JSON.stringify(profile, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = (profile.name || "profile") + ".json";
+  a.click();
+}
+function importProfile(file) {
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const p = JSON.parse(r.result);
+      if (!Array.isArray(p.layers)) throw new Error("형식 오류");
+      profile = p; saveProfile(); selected = null; render(); toast("불러옴");
+    } catch (e) { toast("불러오기 실패: " + e.message); }
+  };
+  r.readAsText(file);
+}
+
+// ---------- toast ----------
+let toastTimer;
+function toast(msg) {
+  const t = $("#toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+// ---------- wire up ----------
+$("#connectBtn").onclick = connect;
+$("#uploadBtn").onclick = upload;
+$("#exportBtn").onclick = exportProfile;
+$("#importInput").onchange = (e) => e.target.files[0] && importProfile(e.target.files[0]);
+$("#resetBtn").onclick = () => { if (confirm("현재 프로필을 모두 비울까요?")) { profile = emptyProfile(); saveProfile(); selected = null; render(); } };
+$("#profileName").oninput = (e) => { profile.name = e.target.value; saveProfile(); };
+document.addEventListener("input", (e) => { if (e.target.closest("#editor")) refreshHex(); });
+
+render();
