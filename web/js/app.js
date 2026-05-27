@@ -132,38 +132,50 @@ function renderLayers() {
   }
 }
 
-function tile(keyId, top, sub) {
+function selectKey(keyId, title) {
+  selected = { keyId, title };
+  renderGrid(); renderEditor();
+}
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function keycap(keyId, label) {
   const d = document.createElement("button");
-  d.className = "tile" + (selected?.keyId === keyId ? " sel" : "");
-  d.innerHTML = `<span class="tile-top">${top}</span><span class="tile-sub">${sub}</span>`;
-  d.onclick = () => { selected = { keyId, title: top }; renderGrid(); renderEditor(); };
+  const b = bindingOf(keyId);
+  d.className = "keycap" + (selected?.keyId === keyId ? " sel" : "") + (b ? " bound" : "");
+  d.innerHTML = `<span class="cap-n">${label}</span><span class="cap-sum">${esc(summarize(b))}</span>`;
+  d.onclick = () => selectKey(keyId, "버튼 " + label);
   return d;
 }
 
+function dial(k) {
+  const wrap = document.createElement("div");
+  wrap.className = "dial-wrap";
+  wrap.innerHTML = `<div class="dial-circle"><span>노브 ${k + 1}</span></div>`;
+  const acts = document.createElement("div");
+  acts.className = "dial-acts";
+  for (const act of KNOB_ACTIONS) {
+    const id = knobId(k, act.a);
+    const b = bindingOf(id);
+    const chip = document.createElement("button");
+    chip.className = "dial-chip" + (selected?.keyId === id ? " sel" : "") + (b ? " bound" : "");
+    chip.innerHTML = `<span class="chip-ic">${act.icon}</span><span class="chip-sum">${esc(summarize(b))}</span>`;
+    chip.title = act.name;
+    chip.onclick = () => selectKey(id, `노브 ${k + 1} ${act.icon}${act.name}`);
+    acts.appendChild(chip);
+  }
+  wrap.appendChild(acts);
+  return wrap;
+}
+
 function renderGrid() {
-  const grid = $("#buttonGrid");
-  grid.innerHTML = "";
-  for (let n = 0; n < NUM_BUTTONS; n++) {
-    const id = buttonId(n);
-    grid.appendChild(tile(id, "버튼 " + (n + 1), summarize(bindingOf(id))));
-  }
-  const knobs = $("#knobPanel");
-  knobs.innerHTML = "";
-  knobs.style.gridTemplateColumns = `repeat(${Math.max(NUM_KNOBS, 1)}, 1fr)`;
-  knobs.style.display = NUM_KNOBS ? "grid" : "none";
-  for (let k = 0; k < NUM_KNOBS; k++) {
-    const wrap = document.createElement("div");
-    wrap.className = "knob";
-    const h = document.createElement("div");
-    h.className = "knob-h";
-    h.textContent = "노브 " + (k + 1);
-    wrap.appendChild(h);
-    for (const act of KNOB_ACTIONS) {
-      const id = knobId(k, act.a);
-      wrap.appendChild(tile(id, `${act.icon} ${act.name}`, summarize(bindingOf(id))));
-    }
-    knobs.appendChild(wrap);
-  }
+  const keys = $("#keys");
+  keys.innerHTML = "";
+  keys.style.gridTemplateColumns = `repeat(${Math.min(NUM_BUTTONS, 3) || 1}, 1fr)`;
+  for (let n = 0; n < NUM_BUTTONS; n++) keys.appendChild(keycap(buttonId(n), n + 1));
+  const dials = $("#dials");
+  dials.innerHTML = "";
+  dials.style.display = NUM_KNOBS ? "flex" : "none";
+  for (let k = 0; k < NUM_KNOBS; k++) dials.appendChild(dial(k));
 }
 
 function keyOptions(selectedCode) {
@@ -181,17 +193,13 @@ function renderEditor() {
   const b = bindingOf(selected.keyId) || { type: "none" };
   const type = b.type || "none";
 
+  const TYPES = [["none", "없음"], ["key", "⌨ 키보드"], ["text", "📝 상용구"], ["media", "🎵 미디어"], ["mouse", "🖱 마우스"]];
   ed.innerHTML = `
-    <h3>${selected.title} <span class="dim">· 레이어 ${curLayer + 1}</span></h3>
-    <label>동작 종류
-      <select id="edType">
-        <option value="none"  ${type==="none"?"selected":""}>없음 (초기화)</option>
-        <option value="key"   ${type==="key"?"selected":""}>키보드 (단축키·매크로)</option>
-        <option value="text"  ${type==="text"?"selected":""}>상용구 (텍스트)</option>
-        <option value="media" ${type==="media"?"selected":""}>미디어</option>
-        <option value="mouse" ${type==="mouse"?"selected":""}>마우스</option>
-      </select>
-    </label>
+    <h3>${esc(selected.title)} <span class="dim">· 레이어 ${curLayer + 1}</span></h3>
+    <div class="type-btns" id="edTypeBtns">
+      ${TYPES.map(([v, l]) => `<button type="button" class="type-btn ${v === type ? "active" : ""}" data-type="${v}">${l}</button>`).join("")}
+    </div>
+    <input type="hidden" id="edType" value="${type}">
     <div id="edBody"></div>
     <div class="ed-actions">
       <button id="edSave" class="primary">적용</button>
@@ -199,7 +207,11 @@ function renderEditor() {
     </div>
     <details class="dbg"><summary>전송 패킷 미리보기</summary><pre id="edHex"></pre></details>
   `;
-  $("#edType").onchange = () => renderEditorBody($("#edType").value, b);
+  $("#edTypeBtns").querySelectorAll(".type-btn").forEach((btn) => btn.onclick = () => {
+    $("#edType").value = btn.dataset.type;
+    $("#edTypeBtns").querySelectorAll(".type-btn").forEach((x) => x.classList.toggle("active", x === btn));
+    renderEditorBody(btn.dataset.type, b);
+  });
   $("#edSave").onclick = applyEditor;
   $("#edClear").onclick = () => setBinding(selected.keyId, null);
   renderEditorBody(type, b);
