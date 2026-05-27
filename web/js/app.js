@@ -115,7 +115,7 @@ function summarize(b) {
     const mlist = b.mods || (b.mod ? [b.mod] : []);
     const mod = mlist.length ? mlist.join("+") + "+" : "";
     const btn = (b.buttons || []).map((x) => ({ Left: "L", Right: "R", Middle: "M" }[x] || x)).join("");
-    if (b.action === "wheel") return `🖱 ${mod}휠 ${(b.delta ?? 1) >= 0 ? "↑위" : "↓아래"}`;
+    if (b.action === "wheel") return `🖱 ${mod}휠 ${(b.delta ?? 1) >= 0 ? "위" : "아래"}`;
     if (b.action === "click") return `🖱 ${mod}클릭 ${btn}`;
     if (b.action === "move") return `🖱 ${mod}이동 ${b.dx || 0},${b.dy || 0}`;
     if (b.action === "drag") return `🖱 ${mod}드래그 ${btn} ${b.dx || 0},${b.dy || 0}`;
@@ -135,6 +135,13 @@ function render() {
   renderEditor();
   renderLed();
   $("#profileName").value = profile.name;
+  fitAppWidth();
+}
+
+// size the whole centered column to the keyboard board's width (+ panel padding)
+function fitAppWidth() {
+  const dev = $("#device");
+  if (dev) $(".app").style.width = (dev.offsetWidth + 40) + "px";
 }
 
 function renderDeviceCfg() {
@@ -334,8 +341,8 @@ function renderMouseBody(b) {
   if (act === "wheel") {
     const up = (b.delta ?? 1) >= 0;
     f += `<label>방향</label><div class="toggle-row">
-      <button type="button" id="whUp" class="toggle ${up ? "active" : ""}">↑ 위</button>
-      <button type="button" id="whDn" class="toggle ${up ? "" : "active"}">↓ 아래</button></div>`;
+      <button type="button" id="whUp" class="toggle ${up ? "active" : ""}">위</button>
+      <button type="button" id="whDn" class="toggle ${up ? "" : "active"}">아래</button></div>`;
   }
   const actLabel = { click: "클릭", wheel: "휠", move: "이동", drag: "드래그" };
   body.innerHTML = `
