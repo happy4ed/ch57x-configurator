@@ -106,7 +106,8 @@ function summarize(b) {
   if (b.type === "text") return "📝 " + (b.text ? `"${b.text.slice(0, 14)}${b.text.length > 14 ? "…" : ""}"` : "");
   if (b.type === "media") return "🎵 " + (MEDIA_CODES[b.media]?.label || b.media);
   if (b.type === "mouse") {
-    const mod = b.mod ? b.mod + "+" : "";
+    const mlist = b.mods || (b.mod ? [b.mod] : []);
+    const mod = mlist.length ? mlist.join("+") + "+" : "";
     const btn = (b.buttons || []).map((x) => ({ Left: "L", Right: "R", Middle: "M" }[x] || x)).join("");
     if (b.action === "wheel") return `🖱 ${mod}휠 ${(b.delta ?? 1) >= 0 ? "↑위" : "↓아래"}`;
     if (b.action === "click") return `🖱 ${mod}클릭 ${btn}`;
@@ -310,11 +311,15 @@ function renderSteps() {
 function renderMouseBody(b) {
   const body = $("#edBody");
   const act = b.action || "click";
+  const mods = b.mods || (b.mod ? [b.mod] : []);
   const fld = (id, label, v) => `<label>${label} <input id="${id}" type="number" value="${v || 0}"></label>`;
-  const modOpts = ["", "Ctrl", "Shift", "Alt"].map((m) => `<option value="${m}" ${(b.mod || "") === m ? "selected" : ""}>${m || "(없음)"}</option>`).join("");
-  const btns = ["Left", "Right", "Middle"].map((m) => `<label class="chk"><input type="checkbox" data-mbtn="${m}" ${b.buttons?.includes(m)?"checked":""}>${m}</label>`).join("");
+  const modBtns = ["Ctrl", "Shift", "Alt"].map((m) =>
+    `<button type="button" class="modkey ${mods.includes(m)?"active":""}" data-mmod="${m}">${m}</button>`).join("");
+  const btnLabel = { Left: "왼쪽", Right: "오른쪽", Middle: "가운데" };
+  const btnBtns = ["Left", "Right", "Middle"].map((m) =>
+    `<button type="button" class="modkey ${b.buttons?.includes(m)?"active":""}" data-mbtn="${m}">${btnLabel[m]}</button>`).join("");
   let f = "";
-  if (act === "click" || act === "drag") f += `<div class="mods">${btns}</div>`;
+  if (act === "click" || act === "drag") f += `<label>버튼</label><div class="modkeys">${btnBtns}</div>`;
   if (act === "move" || act === "drag") f += fld("edDx", "dx", b.dx) + fld("edDy", "dy", b.dy);
   if (act === "wheel") {
     const up = (b.delta ?? 1) >= 0;
@@ -325,9 +330,10 @@ function renderMouseBody(b) {
   const actLabel = { click: "클릭", wheel: "휠", move: "이동", drag: "드래그" };
   body.innerHTML = `
     <label>동작 <select id="edMAct">${["click","wheel","move","drag"].map(a=>`<option value="${a}" ${act===a?"selected":""}>${actLabel[a]}</option>`).join("")}</select></label>
-    <label>수정자 <select id="edMMod">${modOpts}</select></label>
+    <label>수정자</label><div class="modkeys">${modBtns}</div>
     ${f}`;
   $("#edMAct").onchange = () => { const cur = readEditor(); cur.action = $("#edMAct").value; renderMouseBody(cur); refreshHex(); };
+  body.querySelectorAll("[data-mmod],[data-mbtn]").forEach((btn) => btn.onclick = () => { btn.classList.toggle("active"); refreshHex(); });
   const up = $("#whUp"), dn = $("#whDn");
   if (up) {
     up.onclick = () => { up.classList.add("active"); dn.classList.remove("active"); refreshHex(); };
@@ -385,8 +391,8 @@ function readEditor() {
     return {
       type: "mouse",
       action,
-      mod: $("#edMMod")?.value || "",
-      buttons: [...document.querySelectorAll("[data-mbtn]:checked")].map((e) => e.dataset.mbtn),
+      mods: [...document.querySelectorAll("[data-mmod].active")].map((e) => e.dataset.mmod),
+      buttons: [...document.querySelectorAll("[data-mbtn].active")].map((e) => e.dataset.mbtn),
       dx: num("edDx"), dy: num("edDy"),
       delta: action === "wheel" ? ($("#whUp")?.classList.contains("active") ? 1 : -1) : 0,
     };

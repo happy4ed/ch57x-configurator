@@ -67,7 +67,8 @@ export function buildKeyMessages(keyId, layer, binding) {
     const code = MEDIA_CODES[binding.media]?.code ?? 0;
     msg.push(0, code & 0xff, (code >> 8) & 0xff);
   } else if (binding.type === "mouse") {
-    const mod = binding.mod ? (MOUSE_MODIFIERS[binding.mod] || 0) : 0;
+    const mods = binding.mods || (binding.mod ? [binding.mod] : []); // back-compat with single mod
+    const mod = mods.reduce((a, m) => a | (MOUSE_MODIFIERS[m] || 0), 0);
     const btns = (binding.buttons || []).reduce((a, b) => a | (MOUSE_BUTTONS[b] || 0), 0);
     switch (binding.action) {
       case "click": msg.push(0x01, mod, btns); break;
