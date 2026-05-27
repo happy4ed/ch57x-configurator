@@ -1,7 +1,14 @@
 import { KEYCODE_ORDER, MEDIA_CODES } from "./keycodes.js";
 import {
-  VENDOR_ID, PRODUCT_IDS, uploadProfile, readProfile, readDeviceInfo, sendRawPacket, buttonId, knobId, previewHex,
+  VENDOR_ID, PRODUCT_IDS, uploadProfile, readProfile, readDeviceInfo, textToSteps, sendRawPacket, buttonId, knobId, previewHex,
 } from "./protocol.js";
+
+// compare two key-step lists (mods set + code)
+function sameSteps(a, b) {
+  if (!a || !b || a.length !== b.length) return false;
+  return a.every((s, i) => (s.code || null) === (b[i].code || null) &&
+    [...(s.mods || [])].sort().join() === [...(b[i].mods || [])].sort().join());
+}
 
 // ---------- model ----------
 const DEVCFG_KEY = "ch57x.device.v1";
@@ -433,7 +440,17 @@ async function download() {
     if (!seen.length) { toast("응답 없음 (키보드 연결 확인)"); return; }
     if (!confirm(`키보드에서 레이어 ${seen.map((l) => l + 1).join(", ")} 를 읽었습니다. 해당 레이어를 덮어쓸까요? (나머지 레이어는 유지)`)) return;
     let n = 0;
-    for (const li of seen) { profile.layers[li] = byLayer[li]; n += Object.keys(byLayer[li]).length; }
+    for (const li of seen) {
+      const old = profile.layers[li] || {};
+      const merged = byLayer[li];
+      // keep 상용구(text) bindings whose expansion matches the read-back key sequence
+      for (const [keyId, b] of Object.entries(merged)) {
+        const prev = old[keyId];
+        if (prev?.type === "text" && b.type === "key" && sameSteps(textToSteps(prev.text), b.steps)) merged[keyId] = prev;
+      }
+      profile.layers[li] = merged;
+      n += Object.keys(merged).length;
+    }
     saveProfile(); selected = null; render();
     toast(`불러오기 완료: 레이어 ${seen.map((l) => l + 1).join(",")} · ${n}개 키`);
   } catch (e) {
