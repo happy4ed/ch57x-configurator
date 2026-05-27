@@ -87,13 +87,31 @@ export function buildLedMessages(layer, mode, color) {
   ];
 }
 
-// Send one 64-byte packet via WebHID. Strips report-id byte when REPORT_ID != 0.
-async function sendPacket(device, packet) {
+// Declared OUTPUT-report data length for REPORT_ID (excludes the report-id byte).
+// Read from the device descriptor so we match exactly what the firmware expects
+// (the diagnostic showed id 3 = 64 fields). Falls back to 63 if unknown.
+function outputReportLength(device, reportId) {
+  for (const c of device.collections || []) {
+    for (const r of c.outputReports || []) {
+      if (r.reportId === reportId) {
+        const bits = (r.items || []).reduce((n, i) => n + (i.reportSize || 8) * (i.reportCount || 0), 0);
+        if (bits) return Math.ceil(bits / 8);
+      }
+    }
+  }
+  return 63;
+}
+
+// Send one packet via WebHID, sized to the report's declared data length.
+async function sendPacket(device, packet, dataLen) {
   if (REPORT_ID === 0) {
     await device.sendReport(0, packet);
-  } else {
-    await device.sendReport(REPORT_ID, packet.subarray(1));
+    return;
   }
+  const len = dataLen || 63;
+  const data = new Uint8Array(len);
+  data.set(packet.subarray(1, 1 + len)); // drop report-id byte, pad/truncate to len
+  await device.sendReport(REPORT_ID, data);
 }
 
 // Upload the WHOLE profile: every bound key across ALL layers, each with its
@@ -108,8 +126,9 @@ export async function uploadProfile(device, profile, onProgress) {
       all.push(...msgs);
     }
   }
+  const dataLen = outputReportLength(device, REPORT_ID);
   for (let i = 0; i < all.length; i++) {
-    await sendPacket(device, all[i]);
+    await sendPacket(device, all[i], dataLen);
     onProgress?.(i + 1, all.length);
   }
   return all.length;

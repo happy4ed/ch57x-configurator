@@ -241,17 +241,24 @@ function renderDiag() {
   if (!device) { wrap.style.display = "none"; return; }
   const lines = [`${device.productName}  (VID ${device.vendorId.toString(16)} / PID ${device.productId.toString(16)})`];
   let verdict = "출력 리포트를 못 찾음 → WebUSB 경로 검토 필요";
+  const fmt = (rs) => rs?.length ? rs.map(r => `id ${r.reportId} (${r.items?.reduce((n,i)=>n+(i.reportCount||0),0)}B)`).join(", ") : "없음";
+  let vendorHasInput = false;
   for (const c of device.collections) {
     const up = c.usagePage, vendorDef = up >= 0xff00;
     lines.push(`\ncollection: usagePage 0x${up.toString(16)} usage 0x${c.usage.toString(16)}${vendorDef ? "  ← vendor-defined" : ""}`);
-    const outs = c.outputReports || [];
-    lines.push(`  output reports: ${outs.length ? outs.map(r => `id ${r.reportId} (${r.items?.reduce((n,i)=>n+(i.reportCount||0),0)} fields)`).join(", ") : "없음"}`);
-    for (const r of outs) {
-      if (vendorDef && r.reportId === 3) verdict = "✅ id 3 발견 → REPORT_ID = 3 (현재 기본값 그대로 OK)";
-      else if (vendorDef && r.reportId === 0 && verdict.startsWith("출력")) verdict = "⚠ id 0 → protocol.js 의 REPORT_ID 를 0 으로 바꾸세요";
+    lines.push(`  output : ${fmt(c.outputReports)}`);
+    lines.push(`  input  : ${fmt(c.inputReports)}`);
+    lines.push(`  feature: ${fmt(c.featureReports)}`);
+    for (const r of (c.outputReports || [])) {
+      if (vendorDef && r.reportId === 3) verdict = "✅ id 3 발견 → REPORT_ID = 3 (쓰기 OK)";
+      else if (vendorDef && r.reportId === 0 && verdict.startsWith("출력")) verdict = "⚠ id 0 → protocol.js 의 REPORT_ID 를 0 으로";
     }
+    if (vendorDef && ((c.inputReports?.length) || (c.featureReports?.length))) vendorHasInput = true;
   }
-  lines.push(`\n판정: ${verdict}`);
+  lines.push(`\n쓰기 판정: ${verdict}`);
+  lines.push(`읽기 가능성: ${vendorHasInput
+    ? "△ vendor 인터페이스에 input/feature 리포트 있음 — 읽기 RE 시도해볼 여지 있음"
+    : "✗ vendor 인터페이스에 input/feature 없음 — 현재 설정 읽기 불가 (펌웨어 한계)"}`);
   pre.textContent = lines.join("\n");
   wrap.style.display = "block";
 }
