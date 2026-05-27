@@ -109,23 +109,23 @@ Favorites=0x182 Calculator=0x192 ScreenLock=0x19E
 ## 10. 현재 설정 읽기 (READ)  ★Qt 벤더툴 KEY_PRO(widget.o) 디스어셈블로 확정
 **읽기 명령 opcode = `0xFA`.** (`.NET` MINI KeyBoard.exe 는 read 미구현이지만, Qt 툴 KEY_PRO 는 구현함.)
 
-per-key 요청/응답 방식 (hidapi `hid_write`/`hid_read`):
+레이어별 일괄 덤프 (hidapi `hid_write`/`hid_read`):
 ```
-요청(65B, report id 3): [03 FA <numKeys> <numKnobs> <keyIndex> 00...]
+요청(65B, report id 3): [03 FA <numKeys> <numKnobs> <layer> 00...]
   numKeys  = 키 개수 (기본 0x0f=15)
   numKnobs = 노브 개수 (기본 0x03)
-  keyIndex = 1-based. 키 1..numKeys, 이어서 노브 16.. (§4 keyId 체계와 동일)
-응답(64B, input report id 3): 해당 keyIndex 의 바인딩 (write 포맷 §2/§3 과 대칭)
+  layer    = ★레이어 1..3★  (이 한 바이트가 레이어!)
+응답(64B, input report id 3): 그 레이어의 키마다 1개씩 스트림 — [fa keyId layer kind 00x5 count payload]
+  (write 포맷 §2/§3 과 대칭. keyId 1..15 키, 16.. 노브)
 ```
-- ⚠️ **읽기는 "현재 활성 레이어"만 가능.** 요청에 레이어 파라미터 없음 + §9 대로 소프트 레이어 전환 불가
-  → **레이어 2·3 은 되읽기 불가** (벤더 앱도 활성 레이어만 읽음). 응답 layer 바이트는 항상 01.
-- **LED 도 되읽기 불가** — `read_Hidkey_Data` 는 키/노브만 읽음. LED 상태 read 명령 없음.
-- `Widget::Read_configuration_clicked()` → `read_Hidkey_Data(3, keyCount, knobCount)` 호출.
-- `read_Hidkey_Data` 가 keyIndex 를 순회하며 매번 `03 FA ...` 요청 후 64B 응답을 읽어 키맵에 저장.
-- 응답 파싱 루프: 0x31(49)회 반복 바이트 복사, 레이어 블록 0xbb8(3000)/키 0x32(50) 간격으로 내부 구조에 저장.
-- WebHID 구현: `sendReport(3, [FA, numKeys, numKnobs, keyIndex, ...])` 후 `inputreport` 이벤트(id 3, 64B) 수신.
+- **전 레이어 읽기 = layer 바이트를 1,2,3 으로 바꿔 3번 요청.** `0xa1` 불필요(읽기는 0xfa 단독).
+  - ⚠️ 정정: 이 5번째 바이트를 처음엔 keyIndex 로 오독했으나, `read_Hidkey_Data` 의 루프가 1→numLayers(3) 이고
+    첫 인자가 레이어 개수임. 실제 벤더 앱 "reading device" 도 이렇게 전 레이어를 읽어옴.
+- `Widget::Read_configuration_clicked()` → `read_Hidkey_Data(3=레이어수, keyCount, knobCount)`.
+- **LED 는 되읽기 없음** — `read_Hidkey_Data` 는 키/노브만 읽음. LED read 명령 없음.
+- WebHID 구현: `for layer in 1..3: sendReport(3, [FA, numKeys, numKnobs, layer])` 후 `inputreport`(id 3,64B) 수집.
 
-> 검증: RE 콘솔에서 `03 fa 0f 03 01` 전송 → `◀ IN id 3` 응답이 오면 확정.
+> 검증: RE 콘솔에서 `03 fa 0f 03 02` / `03 fa 0f 03 03` → 레이어 2·3 데이터가 레이어 1과 다르게 나오면 확정.
 
 ## 11. 미지원 / 한계
 - 스크립트 실행/트리거 자동화는 키보드가 호스트로 키 입력을 보내는 것이므로 범위 밖.

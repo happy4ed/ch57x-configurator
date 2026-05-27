@@ -190,21 +190,24 @@ export function parseReadResponse(d) {
   return { keyId, layer, kind, count, binding };
 }
 
-// Read the keyboard's CURRENT active layer (single 0xFA dump). Firmware has no
-// layer parameter on read and no safe software layer-switch, so only the active
-// layer is readable. See docs/PROTOCOL.md §10. Returns { "<layer>:<keyId>": parsed }.
+// Read all 3 layers. Request = [03 FA <numKeys> <numKnobs> <layer>] where the
+// 5th byte is the LAYER (1..3); the device streams every key for that layer.
+// See docs/PROTOCOL.md §10. Returns { "<layer>:<keyId>": parsed } (layer 1-based).
 export async function readProfile(device, { onProgress } = {}) {
   const out = new Map();
+  let reqLayer = 1;
   const handler = (e) => {
     const p = parseReadResponse(new Uint8Array(e.data.buffer));
-    if (p) out.set(`${p.layer}:${p.keyId}`, p);
+    if (p) { p.layer = reqLayer; out.set(`${reqLayer}:${p.keyId}`, p); }
   };
   device.addEventListener("inputreport", handler);
   try {
-    onProgress?.(0, 1);
-    await sendRawPacket(device, Uint8Array.from([0x03, 0xfa, 0x0f, 0x03, 0x01])); // dump active layer
-    await wait(500);
-    onProgress?.(1, 1);
+    for (let layer = 1; layer <= 3; layer++) {
+      reqLayer = layer;
+      await sendRawPacket(device, Uint8Array.from([0x03, 0xfa, 0x0f, 0x03, layer]));
+      await wait(400);
+      onProgress?.(layer, 3);
+    }
   } finally {
     device.removeEventListener("inputreport", handler);
   }
