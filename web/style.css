@@ -135,12 +135,17 @@ progress { width: 160px; }
 .ed-actions { display: flex; gap: 8px; margin-top: 14px; }
 #edCopy { margin-left: auto; }
 
+/* copy picker: wider modal + big layer buttons */
+.modal.copywide .modal-card { width: 860px; }
+#copyLayers { gap: 10px; margin-bottom: 16px; }
+#copyLayers .type-btn { flex: 1; font-size: 18px; padding: 14px 0; }
+
 /* compact board inside the copy picker */
-#copyBoard { --cap: 64px; padding: 12px; gap: 12px; margin-top: 6px; }
+#copyBoard { --cap: 80px; padding: 14px; gap: 12px; margin-top: 6px; }
 #copyBoard .key-row, #copyBoard .keys { gap: 8px; }
 #copyBoard .keycap { padding: 6px 7px; }
-#copyBoard .cap-n { font-size: 11px; }
-#copyBoard .cap-sum, #copyBoard .chip-sum { font-size: 11px; line-height: 1.2; }
+#copyBoard .cap-n { font-size: 12px; }
+#copyBoard .cap-sum, #copyBoard .chip-sum { font-size: 12px; line-height: 1.25; }
 #copyBoard .dials { padding-left: 10px; gap: 10px; }
 #copyBoard .dial-slot { width: 48px; }
 #copyBoard .dial-circle { width: 38px; height: 38px; border-width: 2px; }

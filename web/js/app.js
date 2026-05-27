@@ -273,6 +273,7 @@ function doCopyTo(keyId) {
 
 function renderCopyPicker() {
   const ed = $("#editor");
+  $("#modal").classList.add("copywide");
   ed.innerHTML = `
     <h3>다른 레이어/키로 복사 <span class="dim">원본: ${esc(summarize(copySource))}</span></h3>
     <div class="type-btns" id="copyLayers">
@@ -323,6 +324,7 @@ function renderCopyBoard() {
 
 function renderEditor() {
   const ed = $("#editor");
+  $("#modal").classList.remove("copywide");
   if (!selected) { ed.innerHTML = `<p class="hint">키나 노브 동작을 클릭해 설정하세요.</p>`; return; }
   const b = bindingOf(selected.keyId) || { type: "none" };
   const type = b.type || "none";
