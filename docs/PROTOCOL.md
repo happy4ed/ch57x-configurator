@@ -98,6 +98,22 @@ Favorites=0x182 Calculator=0x192 ScreenLock=0x19E
 ## 8. 키보드 usage code 표
 `A=0x04` 부터 선언 순서대로 1씩 증가 (HID Usage Page 0x07). 구현은 `web/js/keycodes.js` 참조.
 
-## 9. 미지원 / 한계
-- 펌웨어가 **현재 설정 read 미지원** → "장치에서 현재 키맵 불러오기" 불가. 설정은 호스트(브라우저/파일)에 보관.
+## 9. 활성 레이어 전환 (live, 플래시 아님)
+```
+[03 a1 <layer>]   layer 1..3 (0 이면 1 로 보정). 즉시 적용, flash 저장 아님.
+```
+(공식 벤더 앱 `Send_SwLayer` 에서 확인: array[0]=0xa1, array[1]=layer.)
+
+## 10. 미지원 / 한계  ★공식 벤더 앱 디컴파일로 확정
+- **현재 설정 read 불가 (확정).** 공식 "MINI KeyBoard.exe"(.NET) 디컴파일 결과:
+  - 들어온 HID 데이터 핸들러(`myhid_DataReceived`)가 `RecDataBuffer` 에 담기만 하고 **버림**(dead code).
+  - 파일 불러오기(OpenFileDialog/.ini/.json) 경로 **없음**.
+  - "버전 체크"조차 응답을 파싱하지 않고 write 성공 여부만 봄.
+  → 벤더 앱도 **write-only**. 사용자가 본 "읽어오기"는 키보드가 아니라 **앱 자체 저장상태(Properties.Settings, PC별)** 복원으로 추정.
+  → 따라서 설정은 호스트(브라우저/JSON)에 보관하고 "프로필=진실, 플래시로 동기화" 모델이 정답.
 - 스크립트 실행/트리거 자동화는 키보드가 호스트로 키 입력을 보내는 것이므로 범위 밖.
+
+## 부록: 공식 앱 대조 검증 (MINI KeyBoard.exe, .NET / namespace HIDTester)
+- VID 0x1189, PID 0x8840 → mi_00 인터페이스 사용, **ReportID = 3** (`KeyBoardVersion_Check` 가 3→0→2 순으로 탐지).
+- 저장/커밋: `Send_WriteFlash_Cmd` → array[0]=0xaa, array[1]=0xaa = §2 의 커밋 시퀀스와 일치.
+- HidLibrary(C#) 사용. 우리 WebHID 구현과 바이트 포맷 동일.
