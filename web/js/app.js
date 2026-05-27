@@ -46,6 +46,27 @@ const LED_COLORS = [
 ];
 const ledUsesColor = (mode) => mode !== 0 && mode !== 5;
 
+// KeyboardEvent.code -> our keycode name, for the 직접 입력(capture) field
+const EVENT_TO_CODE = (() => {
+  const m = {
+    Enter: "Enter", Escape: "Escape", Backspace: "Backspace", Tab: "Tab", Space: "Space",
+    Minus: "Minus", Equal: "Equal", BracketLeft: "LeftBracket", BracketRight: "RightBracket",
+    Backslash: "Backslash", Semicolon: "Semicolon", Quote: "Quote", Backquote: "Grave",
+    Comma: "Comma", Period: "Dot", Slash: "Slash", CapsLock: "CapsLock",
+    PrintScreen: "PrintScreen", ScrollLock: "ScrollLock", Pause: "Pause", Insert: "Insert",
+    Home: "Home", PageUp: "PageUp", Delete: "Delete", End: "End", PageDown: "PageDown",
+    ArrowRight: "Right", ArrowLeft: "Left", ArrowDown: "Down", ArrowUp: "Up", NumLock: "NumLock",
+    NumpadDivide: "NumPadSlash", NumpadMultiply: "NumPadAsterisk", NumpadSubtract: "NumPadMinus",
+    NumpadAdd: "NumPadPlus", NumpadEnter: "NumPadEnter", NumpadDecimal: "NumPadDot",
+    Numpad0: "NumPad0", ContextMenu: "Application",
+  };
+  for (let c = 65; c <= 90; c++) m["Key" + String.fromCharCode(c)] = String.fromCharCode(c);
+  for (let d = 0; d <= 9; d++) m["Digit" + d] = String(d);
+  for (let n = 1; n <= 9; n++) m["Numpad" + n] = "NumPad" + n;
+  for (let n = 1; n <= 24; n++) m["F" + n] = "F" + n;
+  return m;
+})();
+
 const emptyProfile = () => ({
   name: "내 프로필",
   layers: Array.from({ length: NUM_LAYERS }, () => ({})),
@@ -246,17 +267,22 @@ function renderEditor() {
 }
 
 function stepRow(s, i, removable) {
-  const mk = (m) => `<label class="chk"><input type="checkbox" data-mod="${m}" ${s.mods?.includes(m)?"checked":""}>${m}</label>`;
+  const mk = (m) => `<button type="button" class="modkey ${s.mods?.includes(m)?"active":""}" data-mod="${m}">${m}</button>`;
   return `<div class="step" data-i="${i}">
-    <span class="step-n">${i + 1}</span>
-    <span class="mods">${["Ctrl","Shift","Alt","Win"].map(mk).join("")}</span>
-    <select class="step-key">${keyOptions(s.code)}</select>
-    ${removable ? `<button type="button" class="step-del" data-i="${i}">✕</button>` : ""}
+    <div class="step-top">
+      <span class="step-n">${i + 1}</span>
+      <span class="modkeys">${["Ctrl","Shift","Alt","Win"].map(mk).join("")}</span>
+      ${removable ? `<button type="button" class="step-del" data-i="${i}">✕</button>` : ""}
+    </div>
+    <div class="step-bot">
+      <select class="step-key">${keyOptions(s.code)}</select>
+      <input class="step-cap" placeholder="여기 클릭 후 키 누르기" readonly>
+    </div>
   </div>`;
 }
 function syncSteps() {
   editSteps = [...document.querySelectorAll("#steps .step")].map((r) => ({
-    mods: [...r.querySelectorAll("[data-mod]:checked")].map((e) => e.dataset.mod),
+    mods: [...r.querySelectorAll(".modkey.active")].map((e) => e.dataset.mod),
     code: r.querySelector(".step-key").value || null,
   }));
 }
@@ -265,6 +291,19 @@ function renderSteps() {
   wrap.innerHTML = editSteps.map((s, i) => stepRow(s, i, editSteps.length > 1)).join("");
   wrap.querySelectorAll(".step-del").forEach((btn) => btn.onclick = () => {
     syncSteps(); editSteps.splice(Number(btn.dataset.i), 1); renderSteps(); refreshHex();
+  });
+  wrap.querySelectorAll(".modkey").forEach((btn) => btn.onclick = () => { btn.classList.toggle("active"); refreshHex(); });
+  wrap.querySelectorAll(".step-cap").forEach((cap) => cap.onkeydown = (e) => {
+    e.preventDefault();
+    if (/^(Control|Shift|Alt|Meta|OS)/.test(e.code)) return;
+    const name = EVENT_TO_CODE[e.code];
+    if (!name) return;
+    const row = cap.closest(".step");
+    row.querySelector(".step-key").value = name;
+    const sm = (m, on) => row.querySelector(`.modkey[data-mod="${m}"]`).classList.toggle("active", on);
+    sm("Ctrl", e.ctrlKey); sm("Shift", e.shiftKey); sm("Alt", e.altKey); sm("Win", e.metaKey);
+    cap.value = name;
+    refreshHex();
   });
 }
 

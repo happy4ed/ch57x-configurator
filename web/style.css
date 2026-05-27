@@ -99,26 +99,33 @@ button.danger:hover { border-color: #e25; background: #d0402f; }
 .chip-sum { font-size: 15px; word-break: break-all; line-height: 1.3; color: var(--text); }
 
 /* editor action-type as buttons (not dropdown) */
-.type-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
-.type-btn { font-size: 12px; padding: 6px 10px; }
+.type-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.type-btn { font-size: 14px; padding: 8px 12px; }
 .type-btn.active { background: var(--primary); border-color: var(--primary); }
 
 .upload-bar { display: flex; align-items: center; gap: 12px; margin-top: 18px; flex-wrap: wrap; }
 progress { width: 160px; }
 
-.editor h3 { margin: 0 0 12px; font-size: 15px; }
-.editor label { display: block; margin: 10px 0; font-size: 13px; color: var(--dim); }
-.editor select, .editor input[type=number] { width: 100%; margin-top: 4px; }
-.mods { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; }
-.chk { display: inline-flex !important; align-items: center; gap: 5px; margin: 0 !important; color: var(--text); }
+.editor h3 { margin: 0 0 14px; font-size: 17px; }
+.editor label { display: block; margin: 12px 0; font-size: 15px; color: var(--dim); }
+.editor select, .editor input[type=number], .editor input[type=text], .editor textarea { width: 100%; margin-top: 5px; font-size: 15px; padding: 9px 11px; }
+.editor textarea { background: var(--tile); color: var(--text); border: 1px solid var(--border); border-radius: 8px; resize: vertical; font-family: inherit; }
+.mods { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.chk { display: inline-flex !important; align-items: center; gap: 5px; margin: 0 !important; color: var(--text); font-size: 14px; }
 .chk input { width: auto; }
-.editor textarea { width: 100%; margin-top: 4px; background: var(--tile); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 13px; resize: vertical; font-family: inherit; }
-.step { display: flex; align-items: center; gap: 8px; padding: 8px; margin: 6px 0; border: 1px solid var(--border); border-radius: 8px; flex-wrap: wrap; }
-.step-n { width: 18px; height: 18px; flex: none; display: flex; align-items: center; justify-content: center; background: var(--primary); border-radius: 50%; font-size: 11px; }
-.step .mods { margin: 0; gap: 6px; }
-.step .step-key { flex: 1; min-width: 90px; }
-.step-del { padding: 3px 8px; font-size: 11px; }
-#addStep { font-size: 12px; padding: 6px 10px; margin-top: 4px; }
+
+.step { padding: 10px; margin: 8px 0; border: 1px solid var(--border); border-radius: 9px; }
+.step-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.step-n { width: 22px; height: 22px; flex: none; display: flex; align-items: center; justify-content: center; background: var(--primary); border-radius: 50%; font-size: 13px; }
+.modkeys { display: flex; gap: 6px; flex: 1; flex-wrap: wrap; }
+.modkey { font-size: 14px; padding: 6px 11px; }
+.modkey.active { background: var(--primary); border-color: var(--primary); }
+.step-bot { display: flex; gap: 8px; }
+.step-key { flex: 1.4; min-width: 0; }
+.step-cap { flex: 1; min-width: 0; cursor: pointer; text-align: center; color: var(--dim); }
+.step-cap:focus { border-color: var(--primary); color: var(--text); }
+.step-del { padding: 4px 9px; font-size: 13px; margin-left: auto; }
+#addStep { font-size: 14px; padding: 7px 12px; margin-top: 4px; }
 .toggle-row { display: flex; gap: 8px; margin-top: 4px; }
 .toggle { flex: 1; }
 .toggle.active { background: var(--primary); border-color: var(--primary); }
@@ -134,7 +141,7 @@ progress { width: 160px; }
 /* editor modal */
 .modal { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.55); }
 .modal[hidden] { display: none; }
-.modal-card { position: relative; width: 400px; max-width: 92vw; max-height: 88vh; overflow: auto; }
+.modal-card { position: relative; width: 560px; max-width: 94vw; max-height: 90vh; overflow: auto; }
 .modal-x { position: absolute; top: 12px; right: 12px; padding: 4px 9px; font-size: 13px; }
 
 .toast {
