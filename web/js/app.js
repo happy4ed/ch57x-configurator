@@ -296,7 +296,7 @@ function renderSteps() {
   });
   wrap.querySelectorAll(".modkey").forEach((btn) => btn.onclick = () => { btn.classList.toggle("active"); refreshHex(); });
   wrap.querySelectorAll(".step-cap").forEach((cap) => cap.onkeydown = (e) => {
-    e.preventDefault();
+    e.preventDefault(); e.stopPropagation();
     if (/^(Control|Shift|Alt|Meta|OS)/.test(e.code)) return;
     const name = EVENT_TO_CODE[e.code];
     if (!name) return;
@@ -351,7 +351,8 @@ function renderEditorBody(type, b) {
     body.innerHTML = `<div id="steps"></div>
       <button type="button" id="addStep">+ 단계 추가</button>
       <label>지연(ms, 0=없음) <input id="edDelay" type="number" min="0" max="6000" value="${b.delay||0}"></label>
-      <p class="hint">여러 단계를 순서대로 누릅니다 (최대 18). 단축키 하나면 한 단계만 두세요.</p>`;
+      <p class="hint">여러 단계를 순서대로 누릅니다 (최대 18). 단축키 하나면 한 단계만 두세요.<br>
+        💡 Ctrl+W 처럼 브라우저가 가로채는 조합은 <b>기본 키만 직접 입력</b>하고 <b>수정자는 토글 버튼</b>으로 켜세요.</p>`;
     renderSteps();
     $("#addStep").onclick = () => { syncSteps(); if (editSteps.length < 18) { editSteps.push({ mods: [], code: "" }); renderSteps(); refreshHex(); } };
   } else if (type === "text") {
