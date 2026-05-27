@@ -154,6 +154,22 @@ export async function switchLayer(device, layer) {
   await sendRawPacket(device, Uint8Array.from([0x03, 0xa1, (layer + 1) || 1]));
 }
 
+// Query physical key/knob count: send [03 FB FB FB], response [fb keyCount knobCount ...].
+// (Vendor Widget::Read_KeyBoard_KeyNum.) Returns {keyCount, knobCount} or null on timeout.
+export function readDeviceInfo(device, { timeout = 700 } = {}) {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (val) => { if (done) return; done = true; device.removeEventListener("inputreport", handler); clearTimeout(t); resolve(val); };
+    const handler = (e) => {
+      const d = new Uint8Array(e.data.buffer);
+      if (d[0] === 0xfb) finish({ keyCount: d[1], knobCount: d[2] });
+    };
+    const t = setTimeout(() => finish(null), timeout);
+    device.addEventListener("inputreport", handler);
+    sendRawPacket(device, Uint8Array.from([0x03, 0xfb, 0xfb, 0xfb])).catch(() => finish(null));
+  });
+}
+
 // ---- READ (현재 설정 불러오기) — opcode 0xFA. See docs/PROTOCOL.md §10. ----
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 

@@ -1,11 +1,11 @@
 import { KEYCODE_ORDER, MEDIA_CODES } from "./keycodes.js";
 import {
-  VENDOR_ID, PRODUCT_IDS, uploadProfile, readProfile, sendRawPacket, buttonId, knobId, previewHex,
+  VENDOR_ID, PRODUCT_IDS, uploadProfile, readProfile, readDeviceInfo, sendRawPacket, buttonId, knobId, previewHex,
 } from "./protocol.js";
 
 // ---------- model ----------
-const NUM_BUTTONS = 9;
-const NUM_KNOBS = 3;
+let NUM_BUTTONS = 9;   // adjusted from device on connect (readDeviceInfo)
+let NUM_KNOBS = 3;
 const NUM_LAYERS = 3;
 const KNOB_ACTIONS = [
   { a: 0, icon: "↺", name: "반시계" },
@@ -132,6 +132,8 @@ function renderGrid() {
   }
   const knobs = $("#knobPanel");
   knobs.innerHTML = "";
+  knobs.style.gridTemplateColumns = `repeat(${Math.max(NUM_KNOBS, 1)}, 1fr)`;
+  knobs.style.display = NUM_KNOBS ? "grid" : "none";
   for (let k = 0; k < NUM_KNOBS; k++) {
     const wrap = document.createElement("div");
     wrap.className = "knob";
@@ -267,6 +269,15 @@ async function connect() {
     renderDiag();
     $("#reWrap").style.display = "block";
     toast("연결됨: " + device.productName);
+    // detect physical key/knob count and fit the grid
+    const info = await readDeviceInfo(device);
+    if (info && info.keyCount >= 1 && info.keyCount <= 15 && info.knobCount <= 4) {
+      NUM_BUTTONS = info.keyCount; NUM_KNOBS = info.knobCount;
+      selected = null; render();
+      toast(`기기 감지: 키 ${NUM_BUTTONS}개 · 노브 ${NUM_KNOBS}개`);
+    } else {
+      toast("기기 개수 자동감지 실패 — 기본값(9키·3노브) 사용");
+    }
   } catch (e) { toast("연결 실패: " + e.message); }
 }
 
