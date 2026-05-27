@@ -104,13 +104,25 @@ Favorites=0x182 Calculator=0x192 ScreenLock=0x19E
 ```
 (공식 벤더 앱 `Send_SwLayer` 에서 확인: array[0]=0xa1, array[1]=layer.)
 
-## 10. 미지원 / 한계  ★공식 벤더 앱 디컴파일로 확정
-- **현재 설정 read 불가 (확정).** 공식 "MINI KeyBoard.exe"(.NET) 디컴파일 결과:
-  - 들어온 HID 데이터 핸들러(`myhid_DataReceived`)가 `RecDataBuffer` 에 담기만 하고 **버림**(dead code).
-  - 파일 불러오기(OpenFileDialog/.ini/.json) 경로 **없음**.
-  - "버전 체크"조차 응답을 파싱하지 않고 write 성공 여부만 봄.
-  → 벤더 앱도 **write-only**. 사용자가 본 "읽어오기"는 키보드가 아니라 **앱 자체 저장상태(Properties.Settings, PC별)** 복원으로 추정.
-  → 따라서 설정은 호스트(브라우저/JSON)에 보관하고 "프로필=진실, 플래시로 동기화" 모델이 정답.
+## 10. 현재 설정 읽기 (READ)  ★Qt 벤더툴 KEY_PRO(widget.o) 디스어셈블로 확정
+**읽기 명령 opcode = `0xFA`.** (`.NET` MINI KeyBoard.exe 는 read 미구현이지만, Qt 툴 KEY_PRO 는 구현함.)
+
+per-key 요청/응답 방식 (hidapi `hid_write`/`hid_read`):
+```
+요청(65B, report id 3): [03 FA <numKeys> <numKnobs> <keyIndex> 00...]
+  numKeys  = 키 개수 (기본 0x0f=15)
+  numKnobs = 노브 개수 (기본 0x03)
+  keyIndex = 1-based. 키 1..numKeys, 이어서 노브 16.. (§4 keyId 체계와 동일)
+응답(64B, input report id 3): 해당 keyIndex 의 바인딩 (write 포맷 §2/§3 과 대칭)
+```
+- `Widget::Read_configuration_clicked()` → `read_Hidkey_Data(3, keyCount, knobCount)` 호출.
+- `read_Hidkey_Data` 가 keyIndex 를 순회하며 매번 `03 FA ...` 요청 후 64B 응답을 읽어 키맵에 저장.
+- 응답 파싱 루프: 0x31(49)회 반복 바이트 복사, 레이어 블록 0xbb8(3000)/키 0x32(50) 간격으로 내부 구조에 저장.
+- WebHID 구현: `sendReport(3, [FA, numKeys, numKnobs, keyIndex, ...])` 후 `inputreport` 이벤트(id 3, 64B) 수신.
+
+> 검증: RE 콘솔에서 `03 fa 0f 03 01` 전송 → `◀ IN id 3` 응답이 오면 확정.
+
+## 11. 미지원 / 한계
 - 스크립트 실행/트리거 자동화는 키보드가 호스트로 키 입력을 보내는 것이므로 범위 밖.
 
 ## 부록: 공식 앱 대조 검증 (MINI KeyBoard.exe, .NET / namespace HIDTester)
