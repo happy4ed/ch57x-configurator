@@ -17,6 +17,12 @@ const devCfg = loadDevCfg() || { keyCount: 9, knobCount: 3 };
 let NUM_BUTTONS = devCfg.keyCount;   // manual selector, or auto-detected on connect
 let NUM_KNOBS = devCfg.knobCount;
 const NUM_LAYERS = 3;
+// exact per-model key arrangement (row lengths), max 5 cols × 3 rows — user spec
+const KEY_ROWS = {
+  1: [1], 2: [2], 3: [3], 4: [2, 2], 5: [5], 6: [3, 3], 7: [4, 3], 8: [4, 4],
+  9: [3, 3, 3], 10: [5, 5], 11: [4, 4, 3], 12: [4, 4, 4], 13: [5, 5, 3], 14: [5, 5, 4], 15: [5, 5, 5],
+};
+const keyRows = (n) => KEY_ROWS[n] || Array.from({ length: Math.ceil(n / 5) }, (_, i) => Math.min(5, n - i * 5));
 function setDeviceCounts(keyCount, knobCount) {
   NUM_BUTTONS = keyCount; NUM_KNOBS = knobCount;
   devCfg.keyCount = keyCount; devCfg.knobCount = knobCount;
@@ -218,11 +224,14 @@ function dial(k) {
 function renderGrid() {
   const keys = $("#keys");
   keys.innerHTML = "";
-  // top row fills 3 first, rows grow downward; 4 keys is the 2×2 exception
-  // 1→1, 2→2, 3→3, 4→2×2, 5→3+2, 9→3×3, 12→3×4, 15→3×5
-  const cols = NUM_BUTTONS <= 3 ? Math.max(1, NUM_BUTTONS) : NUM_BUTTONS === 4 ? 2 : 3;
-  keys.style.gridTemplateColumns = `repeat(${cols}, var(--cap))`;
-  for (let n = 0; n < NUM_BUTTONS; n++) keys.appendChild(keycap(buttonId(n), n + 1));
+  // build per-model rows (KEY_ROWS); each row left-aligned, max 5 cols × 3 rows
+  let n = 0;
+  for (const len of keyRows(NUM_BUTTONS)) {
+    const row = document.createElement("div");
+    row.className = "key-row";
+    for (let c = 0; c < len && n < NUM_BUTTONS; c++, n++) row.appendChild(keycap(buttonId(n), n + 1));
+    keys.appendChild(row);
+  }
   const dials = $("#dials");
   dials.innerHTML = "";
   dials.style.display = NUM_KNOBS ? "flex" : "none";
