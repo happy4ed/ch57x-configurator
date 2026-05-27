@@ -72,6 +72,13 @@ progress { width: 160px; }
 .mods { display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0; }
 .chk { display: inline-flex !important; align-items: center; gap: 5px; margin: 0 !important; color: var(--text); }
 .chk input { width: auto; }
+.editor textarea { width: 100%; margin-top: 4px; background: var(--tile); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; font-size: 13px; resize: vertical; font-family: inherit; }
+.step { display: flex; align-items: center; gap: 8px; padding: 8px; margin: 6px 0; border: 1px solid var(--border); border-radius: 8px; flex-wrap: wrap; }
+.step-n { width: 18px; height: 18px; flex: none; display: flex; align-items: center; justify-content: center; background: var(--primary); border-radius: 50%; font-size: 11px; }
+.step .mods { margin: 0; gap: 6px; }
+.step .step-key { flex: 1; min-width: 90px; }
+.step-del { padding: 3px 8px; font-size: 11px; }
+#addStep { font-size: 12px; padding: 6px 10px; margin-top: 4px; }
 .ed-actions { display: flex; gap: 8px; margin-top: 14px; }
 .hint { color: var(--dim); font-size: 12px; }
 .dbg { margin-top: 14px; }

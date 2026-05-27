@@ -59,4 +59,27 @@ const MEDIA_CODES = {
 const MOUSE_BUTTONS = { Left: 0x01, Right: 0x02, Middle: 0x04 };
 const MOUSE_MODIFIERS = { Ctrl: 0x01, Shift: 0x02, Alt: 0x04 };
 
-export { KEYCODES, KEYCODE_ORDER, MODIFIERS, MEDIA_CODES, MOUSE_BUTTONS, MOUSE_MODIFIERS };
+// ASCII char -> {mods, code} for 상용구(text macro), US layout.
+const CHAR_TO_ACCORD = {};
+for (let c = 97; c <= 122; c++) {                 // a-z / A-Z
+  const lo = String.fromCharCode(c), up = lo.toUpperCase();
+  CHAR_TO_ACCORD[lo] = { mods: [], code: up };
+  CHAR_TO_ACCORD[up] = { mods: ["Shift"], code: up };
+}
+const _digits = "1234567890", _shiftDigits = "!@#$%^&*()";
+for (let i = 0; i < 10; i++) {
+  CHAR_TO_ACCORD[_digits[i]] = { mods: [], code: _digits[i] };
+  CHAR_TO_ACCORD[_shiftDigits[i]] = { mods: ["Shift"], code: _digits[i] };
+}
+const _sym = {
+  " ": ["Space", 0], "\n": ["Enter", 0], "\t": ["Tab", 0],
+  "-": ["Minus", 0], "_": ["Minus", 1], "=": ["Equal", 0], "+": ["Equal", 1],
+  "[": ["LeftBracket", 0], "{": ["LeftBracket", 1], "]": ["RightBracket", 0], "}": ["RightBracket", 1],
+  "\\": ["Backslash", 0], "|": ["Backslash", 1], ";": ["Semicolon", 0], ":": ["Semicolon", 1],
+  "'": ["Quote", 0], "\"": ["Quote", 1], "`": ["Grave", 0], "~": ["Grave", 1],
+  ",": ["Comma", 0], "<": ["Comma", 1], ".": ["Dot", 0], ">": ["Dot", 1],
+  "/": ["Slash", 0], "?": ["Slash", 1],
+};
+for (const [ch, [code, sh]] of Object.entries(_sym)) CHAR_TO_ACCORD[ch] = { mods: sh ? ["Shift"] : [], code };
+
+export { KEYCODES, KEYCODE_ORDER, MODIFIERS, MEDIA_CODES, MOUSE_BUTTONS, MOUSE_MODIFIERS, CHAR_TO_ACCORD };

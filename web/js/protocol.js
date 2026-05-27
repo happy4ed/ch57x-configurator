@@ -1,6 +1,17 @@
 // CH57x packet builder + WebHID upload.
 // Faithful port of ch57x-keyboard-tool src/keyboard/k884x.rs. See docs/PROTOCOL.md.
-import { KEYCODES, MODIFIERS, MEDIA_CODES, MOUSE_BUTTONS, MOUSE_MODIFIERS } from "./keycodes.js";
+import { KEYCODES, MODIFIERS, MEDIA_CODES, MOUSE_BUTTONS, MOUSE_MODIFIERS, CHAR_TO_ACCORD } from "./keycodes.js";
+
+// 상용구: expand a text string into key-press accords (max 18, firmware limit).
+export function textToSteps(text) {
+  const steps = [];
+  for (const ch of String(text)) {
+    const a = CHAR_TO_ACCORD[ch];
+    if (a) steps.push({ mods: a.mods.slice(), code: a.code });
+    if (steps.length >= 18) break;
+  }
+  return steps;
+}
 
 export const VENDOR_ID = 0x1189;
 export const PRODUCT_IDS = [0x8840, 0x8842, 0x8890];
@@ -32,6 +43,11 @@ export function knobId(knob, action) { return 16 + 3 * knob + action; } // actio
 //          | {type:"mouse", action, buttons, mod, dx, dy, delta}
 export function buildKeyMessages(keyId, layer, binding) {
   if (!binding || binding.type === "none") return [];
+  // 상용구(text) is just a keyboard macro of expanded char accords
+  if (binding.type === "text") {
+    binding = { type: "key", steps: textToSteps(binding.text), delay: binding.delay || 0 };
+    if (!binding.steps.length) return [];
+  }
 
   const kind = { key: 1, media: 2, mouse: 3 }[binding.type];
   const msg = [0x03, 0xfe, keyId, layer + 1, kind, 0, 0, 0, 0, 0];

@@ -73,8 +73,9 @@ function summarize(b) {
   if (b.type === "key") {
     return (b.steps || []).map((s) =>
       [...(s.mods || []), s.code].filter(Boolean).join("+")
-    ).join(", ") || "—";
+    ).join(" → ") || "—";
   }
+  if (b.type === "text") return "📝 " + (b.text ? `"${b.text.slice(0, 14)}${b.text.length > 14 ? "…" : ""}"` : "");
   if (b.type === "media") return "🎵 " + (MEDIA_CODES[b.media]?.label || b.media);
   if (b.type === "mouse") return "🖱 " + b.action;
   return "—";
@@ -172,6 +173,8 @@ function keyOptions(selectedCode) {
   ).join("");
 }
 
+let editSteps = []; // working list of {mods, code} while editing a key sequence
+
 function renderEditor() {
   const ed = $("#editor");
   if (!selected) { ed.innerHTML = `<p class="hint">키나 노브 동작을 클릭해 설정하세요.</p>`; return; }
@@ -182,8 +185,9 @@ function renderEditor() {
     <h3>${selected.title} <span class="dim">· 레이어 ${curLayer + 1}</span></h3>
     <label>동작 종류
       <select id="edType">
-        <option value="none" ${type==="none"?"selected":""}>없음 (초기화)</option>
-        <option value="key"   ${type==="key"?"selected":""}>키보드</option>
+        <option value="none"  ${type==="none"?"selected":""}>없음 (초기화)</option>
+        <option value="key"   ${type==="key"?"selected":""}>키보드 (단축키·매크로)</option>
+        <option value="text"  ${type==="text"?"selected":""}>상용구 (텍스트)</option>
         <option value="media" ${type==="media"?"selected":""}>미디어</option>
         <option value="mouse" ${type==="mouse"?"selected":""}>마우스</option>
       </select>
@@ -201,31 +205,70 @@ function renderEditor() {
   renderEditorBody(type, b);
 }
 
+function stepRow(s, i, removable) {
+  const mk = (m) => `<label class="chk"><input type="checkbox" data-mod="${m}" ${s.mods?.includes(m)?"checked":""}>${m}</label>`;
+  return `<div class="step" data-i="${i}">
+    <span class="step-n">${i + 1}</span>
+    <span class="mods">${["Ctrl","Shift","Alt","Win"].map(mk).join("")}</span>
+    <select class="step-key">${keyOptions(s.code)}</select>
+    ${removable ? `<button type="button" class="step-del" data-i="${i}">✕</button>` : ""}
+  </div>`;
+}
+function syncSteps() {
+  editSteps = [...document.querySelectorAll("#steps .step")].map((r) => ({
+    mods: [...r.querySelectorAll("[data-mod]:checked")].map((e) => e.dataset.mod),
+    code: r.querySelector(".step-key").value || null,
+  }));
+}
+function renderSteps() {
+  const wrap = $("#steps");
+  wrap.innerHTML = editSteps.map((s, i) => stepRow(s, i, editSteps.length > 1)).join("");
+  wrap.querySelectorAll(".step-del").forEach((btn) => btn.onclick = () => {
+    syncSteps(); editSteps.splice(Number(btn.dataset.i), 1); renderSteps(); refreshHex();
+  });
+}
+
+function renderMouseBody(b) {
+  const body = $("#edBody");
+  const act = b.action || "click";
+  const fld = (id, label, v) => `<label>${label} <input id="${id}" type="number" value="${v || 0}"></label>`;
+  const modOpts = ["", "Ctrl", "Shift", "Alt"].map((m) => `<option value="${m}" ${(b.mod || "") === m ? "selected" : ""}>${m || "(없음)"}</option>`).join("");
+  const btns = ["Left", "Right", "Middle"].map((m) => `<label class="chk"><input type="checkbox" data-mbtn="${m}" ${b.buttons?.includes(m)?"checked":""}>${m}</label>`).join("");
+  let f = "";
+  if (act === "click" || act === "drag") f += `<div class="mods">${btns}</div>`;
+  if (act === "move" || act === "drag") f += fld("edDx", "dx", b.dx) + fld("edDy", "dy", b.dy);
+  if (act === "wheel") f += fld("edDelta", "휠(+위/−아래)", b.delta);
+  body.innerHTML = `
+    <label>동작 <select id="edMAct">${["click","wheel","move","drag"].map(a=>`<option ${act===a?"selected":""}>${a}</option>`).join("")}</select></label>
+    <label>수정자 <select id="edMMod">${modOpts}</select></label>
+    ${f}`;
+  $("#edMAct").onchange = () => { const cur = readEditor(); cur.action = $("#edMAct").value; renderMouseBody(cur); refreshHex(); };
+}
+
 function renderEditorBody(type, b) {
   const body = $("#edBody");
   if (type === "key") {
-    const step = (b.type === "key" && b.steps?.[0]) || { mods: [], code: "" };
-    const mk = (m) => `<label class="chk"><input type="checkbox" data-mod="${m}" ${step.mods?.includes(m)?"checked":""}>${m}</label>`;
-    body.innerHTML = `
-      <div class="mods">${["Ctrl","Shift","Alt","Win"].map(mk).join("")}</div>
-      <label>키 <select id="edKey">${keyOptions(step.code)}</select></label>
+    editSteps = (b.type === "key" && b.steps?.length)
+      ? b.steps.map((s) => ({ mods: (s.mods || []).slice(), code: s.code || "" }))
+      : [{ mods: [], code: "" }];
+    body.innerHTML = `<div id="steps"></div>
+      <button type="button" id="addStep">+ 단계 추가</button>
       <label>지연(ms, 0=없음) <input id="edDelay" type="number" min="0" max="6000" value="${b.delay||0}"></label>
-      <p class="hint">단축키 한 조합을 설정합니다. (다단계 매크로는 추후 추가)</p>`;
+      <p class="hint">여러 단계를 순서대로 누릅니다 (최대 18). 단축키 하나면 한 단계만 두세요.</p>`;
+    renderSteps();
+    $("#addStep").onclick = () => { syncSteps(); if (editSteps.length < 18) { editSteps.push({ mods: [], code: "" }); renderSteps(); refreshHex(); } };
+  } else if (type === "text") {
+    body.innerHTML = `
+      <label>텍스트 (상용구)
+        <textarea id="edText" rows="2" maxlength="40" placeholder="예: hello@example.com">${b.type==="text"?(b.text||""):""}</textarea></label>
+      <label>지연(ms, 0=없음) <input id="edDelay" type="number" min="0" max="6000" value="${b.delay||0}"></label>
+      <p class="hint">문자를 키 시퀀스로 자동 변환합니다 (US 배열, 최대 18자). 한글/IME는 불가.</p>`;
   } else if (type === "media") {
     const opts = Object.entries(MEDIA_CODES).map(([k, v]) =>
       `<option value="${k}" ${b.media===k?"selected":""}>${v.label} (${k})</option>`).join("");
     body.innerHTML = `<label>미디어 키 <select id="edMedia">${opts}</select></label>`;
   } else if (type === "mouse") {
-    const act = b.action || "click";
-    const mk = (m) => `<label class="chk"><input type="checkbox" data-mbtn="${m}" ${b.buttons?.includes(m)?"checked":""}>${m}</label>`;
-    body.innerHTML = `
-      <label>동작 <select id="edMAct">
-        ${["click","wheel","move","drag"].map(a=>`<option ${act===a?"selected":""}>${a}</option>`).join("")}
-      </select></label>
-      <div class="mods">${["Left","Right","Middle"].map(mk).join("")}</div>
-      <label>dx <input id="edDx" type="number" value="${b.dx||0}"></label>
-      <label>dy <input id="edDy" type="number" value="${b.dy||0}"></label>
-      <label>휠 delta <input id="edDelta" type="number" value="${b.delta||0}"></label>`;
+    renderMouseBody(b);
   } else {
     body.innerHTML = `<p class="hint">이 키는 비어 있습니다 (업로드 시 펌웨어 기본값).</p>`;
   }
@@ -234,21 +277,26 @@ function renderEditorBody(type, b) {
 
 function readEditor() {
   const type = $("#edType").value;
+  const num = (id) => { const el = document.getElementById(id); return el ? Number(el.value) || 0 : 0; };
   if (type === "key") {
-    const mods = [...document.querySelectorAll('[data-mod]:checked')].map((e) => e.dataset.mod);
-    const code = $("#edKey").value;
-    if (!mods.length && !code) return { type: "none" };
-    return { type: "key", steps: [{ mods, code: code || null }], delay: Number($("#edDelay").value) || 0 };
+    syncSteps();
+    const steps = editSteps.filter((s) => s.mods.length || s.code);
+    if (!steps.length) return { type: "none" };
+    return { type: "key", steps, delay: num("edDelay") };
+  }
+  if (type === "text") {
+    const t = $("#edText").value;
+    if (!t) return { type: "none" };
+    return { type: "text", text: t, delay: num("edDelay") };
   }
   if (type === "media") return { type: "media", media: $("#edMedia").value };
   if (type === "mouse") {
     return {
       type: "mouse",
       action: $("#edMAct").value,
-      buttons: [...document.querySelectorAll('[data-mbtn]:checked')].map((e) => e.dataset.mbtn),
-      dx: Number($("#edDx").value) || 0,
-      dy: Number($("#edDy").value) || 0,
-      delta: Number($("#edDelta").value) || 0,
+      mod: $("#edMMod")?.value || "",
+      buttons: [...document.querySelectorAll("[data-mbtn]:checked")].map((e) => e.dataset.mbtn),
+      dx: num("edDx"), dy: num("edDy"), delta: num("edDelta"),
     };
   }
   return { type: "none" };
@@ -438,7 +486,8 @@ $("#cfgKeys").onchange = (e) => { setDeviceCounts(Number(e.target.value), NUM_KN
 $("#cfgKnobs").onchange = (e) => { setDeviceCounts(NUM_BUTTONS, Number(e.target.value)); selected = null; render(); };
 $("#exportBtn").onclick = exportProfile;
 $("#importInput").onchange = (e) => e.target.files[0] && importProfile(e.target.files[0]);
-$("#resetBtn").onclick = () => { if (confirm("현재 프로필을 모두 비울까요?")) { profile = emptyProfile(); saveProfile(); selected = null; render(); } };
+$("#clearLayerBtn").onclick = () => { if (confirm(`레이어 ${curLayer + 1} 의 모든 키를 비울까요?`)) { profile.layers[curLayer] = {}; saveProfile(); selected = null; render(); } };
+$("#resetBtn").onclick = () => { if (confirm("전체 레이어를 모두 비울까요?")) { profile = emptyProfile(); saveProfile(); selected = null; render(); } };
 $("#profileName").oninput = (e) => { profile.name = e.target.value; saveProfile(); };
 $("#reSend").onclick = () => reSend($("#reHex").value);
 $("#reClear").onclick = () => { reLog.length = 0; renderReLog(); };
