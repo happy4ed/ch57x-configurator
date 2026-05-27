@@ -24,7 +24,7 @@ function setDeviceCounts(keyCount, knobCount) {
 }
 const KNOB_ACTIONS = [
   { a: 0, icon: "↺", name: "반시계" },
-  { a: 1, icon: "⬇", name: "누름" },
+  { a: 1, icon: "↓", name: "누름" },
   { a: 2, icon: "↻", name: "시계" },
 ];
 const STORAGE_KEY = "ch57x.profile.v1";
@@ -117,6 +117,11 @@ function renderLed() {
     `<option value="${c.v}" ${c.v === led.color ? "selected" : ""}>${c.label}</option>`).join("");
   colorSel.disabled = !ledUsesColor(led.mode);
   $("#ledLayerLabel").textContent = "레이어 " + (curLayer + 1);
+  // tint key/knob borders with this layer's LED color
+  const dev = $("#device");
+  const c = ledUsesColor(led.mode) ? (LED_COLORS.find((x) => x.v === led.color)?.css)
+    : (led.mode === 5 ? "#dfe3ea" : "");
+  if (c) dev.style.setProperty("--led", c); else dev.style.removeProperty("--led");
 }
 
 function renderStatus() {
