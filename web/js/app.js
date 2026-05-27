@@ -1,6 +1,6 @@
 import { KEYCODE_ORDER, MEDIA_CODES } from "./keycodes.js";
 import {
-  VENDOR_ID, PRODUCT_IDS, uploadProfile, sendRawPacket, buttonId, knobId, previewHex,
+  VENDOR_ID, PRODUCT_IDS, uploadProfile, readProfile, sendRawPacket, buttonId, knobId, previewHex,
 } from "./protocol.js";
 
 // ---------- model ----------
@@ -68,6 +68,7 @@ function renderStatus() {
   if (device) { s.textContent = "● 연결됨"; s.className = "status ok"; }
   else { s.textContent = "○ 미연결"; s.className = "status off"; }
   $("#uploadBtn").disabled = !device;
+  $("#downloadBtn").disabled = !device;
 }
 
 function renderLayers() {
@@ -296,6 +297,30 @@ async function reSend(hexStr) {
   } catch (err) { toast("전송 실패: " + err.message); }
 }
 
+async function download() {
+  if (!device) return;
+  if (Object.values(profile.layers).some((l) => Object.keys(l).length) &&
+      !confirm("키보드에서 읽어온 설정으로 현재 프로필을 덮어쓸까요?")) return;
+  const bar = $("#progress");
+  bar.style.display = "block"; bar.value = 0; bar.max = 3;
+  try {
+    const map = await readProfile(device, { onProgress: (i, n) => { bar.value = i; bar.max = n; } });
+    const layers = [{}, {}, {}];
+    let n = 0;
+    for (const p of map.values()) {
+      const li = Math.min(Math.max((p.layer || 1) - 1, 0), 2);
+      if (p.binding) { layers[li][p.keyId] = p.binding; n++; }
+    }
+    profile.layers = layers;
+    saveProfile(); selected = null; render();
+    toast(n ? `불러오기 완료: ${n}개 키 설정 읽음` : "응답 없음 (키보드 연결 확인)");
+  } catch (e) {
+    toast("불러오기 실패: " + e.message);
+  } finally {
+    setTimeout(() => { bar.style.display = "none"; }, 800);
+  }
+}
+
 async function upload() {
   if (!device) return;
   const bar = $("#progress");
@@ -344,6 +369,7 @@ function toast(msg) {
 // ---------- wire up ----------
 $("#connectBtn").onclick = connect;
 $("#uploadBtn").onclick = upload;
+$("#downloadBtn").onclick = download;
 $("#exportBtn").onclick = exportProfile;
 $("#importInput").onchange = (e) => e.target.files[0] && importProfile(e.target.files[0]);
 $("#resetBtn").onclick = () => { if (confirm("현재 프로필을 모두 비울까요?")) { profile = emptyProfile(); saveProfile(); selected = null; render(); } };

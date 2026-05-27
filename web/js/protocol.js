@@ -141,6 +141,67 @@ export async function sendRawPacket(device, bytes) {
   await sendPacket(device, pkt, outputReportLength(device, REPORT_ID));
 }
 
+// ---- READ (현재 설정 불러오기) — opcode 0xFA. See docs/PROTOCOL.md §10. ----
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// reverse lookups built from the write tables (codes are raw HID usages)
+const CODE_TO_KEY = Object.fromEntries(Object.entries(KEYCODES).map(([n, v]) => [v.code, n]));
+const CODE_TO_MEDIA = Object.fromEntries(Object.entries(MEDIA_CODES).map(([n, v]) => [v.code, n]));
+const MOD_BITS = Object.entries(MODIFIERS);
+
+function modsFromByte(b) {
+  return MOD_BITS.filter(([, bit]) => b & bit).map(([name]) => name);
+}
+
+// Decode one 0xFA response (data after report-id) into {keyId, layer, binding}.
+export function parseReadResponse(d) {
+  if (!d || d[0] !== 0xfa) return null;
+  const keyId = d[1], layer = d[2], kind = d[3], count = d[9];
+  let binding = null;
+  if (kind === 0 || kind === 1) {            // keyboard
+    const steps = [];
+    for (let i = 0; i < Math.max(count, 1); i++) {
+      const mod = d[10 + i * 2], code = d[11 + i * 2];
+      if (!mod && !code) continue;
+      steps.push({ mods: modsFromByte(mod), code: code ? (CODE_TO_KEY[code] || null) : null });
+    }
+    if (steps.length) binding = { type: "key", steps, delay: 0 };
+  } else if (kind === 2) {                    // media
+    const code = d[10] | (d[11] << 8);
+    if (code) binding = { type: "media", media: CODE_TO_MEDIA[code] || `0x${code.toString(16)}` };
+  } else if (kind === 3) {                    // mouse (best-effort)
+    const delta = d[14] << 24 >> 24;          // signed
+    if (delta) binding = { type: "mouse", action: "wheel", delta, buttons: [], mod: null };
+    else binding = { type: "mouse", action: "click", buttons: [], mod: null, raw: Array.from(d.slice(10, 16)) };
+  }
+  return { keyId, layer, kind, count, binding };
+}
+
+// Read the whole keyboard: switch each layer (0xa1) then dump (0xfa), collect 0xFA inputs.
+// Returns { "<layer>:<keyId>": parsed }. layer is 1-based as reported by device.
+export async function readProfile(device, { onProgress } = {}) {
+  const out = new Map();
+  const handler = (e) => {
+    const d = new Uint8Array(e.data.buffer);
+    const p = parseReadResponse(d);
+    if (p) out.set(`${p.layer}:${p.keyId}`, p);
+  };
+  device.addEventListener("inputreport", handler);
+  try {
+    for (let layer = 1; layer <= 3; layer++) {
+      await sendRawPacket(device, Uint8Array.from([0x03, 0xa1, layer])); // switch active layer
+      await wait(60);
+      await sendRawPacket(device, Uint8Array.from([0x03, 0xfa, 0x0f, 0x03, 0x01])); // dump
+      await wait(350);
+      onProgress?.(layer, 3);
+    }
+  } finally {
+    device.removeEventListener("inputreport", handler);
+    await sendRawPacket(device, Uint8Array.from([0x03, 0xa1, 0x01])); // restore layer 1
+  }
+  return out;
+}
+
 // Convenience: build messages as hex strings (for the dry-run / 디버그 view).
 export function previewHex(keyId, layer, binding) {
   return buildKeyMessages(keyId, layer, binding).map((p) =>

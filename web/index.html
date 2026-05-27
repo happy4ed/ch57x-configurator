@@ -30,9 +30,10 @@
       <div id="buttonGrid" class="grid"></div>
       <div id="knobPanel" class="knobs"></div>
       <div class="upload-bar">
+        <button id="downloadBtn" disabled>키보드에서 불러오기</button>
         <button id="uploadBtn" class="primary" disabled>키보드에 업로드</button>
         <progress id="progress" value="0" max="1" style="display:none"></progress>
-        <span class="dim">업로드 시 전체 레이어를 한 번에 전송 → 부분 초기화 방지</span>
+        <span class="dim">불러오기=현재 설정 읽기(0xFA) · 업로드=전체 레이어 전송</span>
       </div>
       <details id="diagWrap" class="dbg" style="display:none">
         <summary>장치 진단 (REPORT_ID 확정용)</summary>
