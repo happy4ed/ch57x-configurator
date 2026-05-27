@@ -158,7 +158,7 @@ function dial(k) {
   const wrap = document.createElement("div");
   wrap.className = "dial-wrap";
   const big = k === NUM_KNOBS - 1; // last knob is the big one (보통 노브 3)
-  wrap.innerHTML = `<div class="dial-circle${big ? " big" : ""}"><span>노브 ${k + 1}</span></div>`;
+  wrap.innerHTML = `<div class="dial-slot"><div class="dial-circle${big ? " big" : ""}"><span>노브 ${k + 1}</span></div></div>`;
   const acts = document.createElement("div");
   acts.className = "dial-acts";
   for (const act of KNOB_ACTIONS) {
