@@ -270,7 +270,7 @@ function stepRow(s, i, removable) {
   const mk = (m) => `<button type="button" class="modkey ${s.mods?.includes(m)?"active":""}" data-mod="${m}">${m}</button>`;
   return `<div class="step" data-i="${i}">
     <div class="step-top">
-      <span class="step-n">${i + 1}</span>
+      ${removable ? `<span class="step-n">${i + 1}</span>` : ""}
       <span class="modkeys">${["Ctrl","Shift","Alt","Win"].map(mk).join("")}</span>
       ${removable ? `<button type="button" class="step-del" data-i="${i}">✕</button>` : ""}
     </div>
