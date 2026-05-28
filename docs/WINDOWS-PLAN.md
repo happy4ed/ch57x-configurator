@@ -23,7 +23,11 @@
 - **Electron + node-hid** — 웹 코드/UI 자산 재사용 최대. 트레이·always-on-top·투명창 지원. 앱감지/캡처는 네이티브 애드온/PowerShell.
 - **C# .NET (WPF/WinForms) + HidSharp** — 가볍고 윈도우 통합 강함(트레이, 글로벌훅, 앱감지 Win32 API). 단 UI 재작성.
 - **Rust(tauri) + hidapi** — 가볍고 빠름, ch57x-keyboard-tool 로직 직접 활용. UI는 웹뷰.
-→ 1순위 검토: **Electron(자산 재사용)** vs **C#(.NET, OS통합 강점)**. 결정 필요.
+→ **결정(2026-05-28): C# .NET (WPF) + HidSharp.** OS 통합(트레이·글로벌훅·앱감지·HUD) 최강, 가볍고 단일 exe 배포 용이.
+  - HID: **HidSharp**(가볍고 검증됨) 또는 hidapi.net. sendReport/inputreport 동등 기능.
+  - UI: WPF(투명·always-on-top HUD에 유리). 트레이: H.NotifyIcon 또는 WinForms NotifyIcon.
+  - 빌드 제약: WPF는 **Windows 전용** — 이 AWS 리눅스에선 빌드/실행 불가. 순수 로직(프로토콜 라이브러리)은
+    netstandard/net console 로 분리하면 리눅스에서 컴파일 검증 가능. WPF/후킹 부분은 사용자 윈도우 PC에서 빌드.
 
 ## 윈도우만의 구현 포인트
 - HID: node-hid / HidSharp / hidapi 로 `sendReport(3,...)`·input report 수신 (드라이버 불필요, WinUSB 아님).
@@ -37,8 +41,20 @@
 - `web/js/keycodes.js`, `protocol.js` 의 패킷 빌더/파서 로직(언어 포팅 또는 Electron이면 그대로).
 - `docs/PROTOCOL.md` 전체.
 
+## 빌드 환경 메모
+- 개발/저장은 AWS 리눅스(~/.dotnet 에 .NET 8 SDK 있음). **WPF·Win32 후킹은 리눅스 빌드 불가** → 사용자 윈도우 PC에서 빌드.
+- 구조 분리: `Ch57x.Core`(netstandard2.0/net8, 프로토콜·HID 추상화) = 리눅스 컴파일검증 가능 /
+  `Ch57x.App`(net8-windows, WPF·트레이·후킹·HUD) = 윈도우 빌드.
+
+## 개발 단계 (제안 순서)
+1. **Core 라이브러리** — 프로토콜(0xFE/0xFA/0xFB/커밋) C# 포팅 + HidSharp 연결/읽기/쓰기. (리눅스서 컴파일 검증)
+2. **트레이 앱 골격** — 트레이 상주, 프로필 로드/저장(JSON, 웹 프로필 호환), 연결상태.
+3. **호스트 리매핑 엔진** — WH_KEYBOARD_LL 후킹, 모드별 키 재해석, 핫키/노브로 레이어 즉시전환.
+4. **앱 감지 자동전환** — SetWinEventHook 포그라운드 추적 → 앱별 프로필 자동 적용.
+5. **HUD 오버레이** — 투명·always-on-top, 현재 레이어 키맵 + Alias(라벨/아이콘/캡처 썸네일).
+
 ## 미해결/결정 필요
-- [ ] 스택 결정 (Electron / C# / Tauri)
+- [x] 스택 = **C# .NET WPF + HidSharp**
 - [x] 레이어 전략 = **호스트 리매핑**(위 핵심 설계). 펌웨어 0xa1 직접전환은 위험으로 보류.
 - [ ] 베이스 레이어 키 코드 컨벤션(F13~F24 등 후킹 충돌 회피)
 - [ ] Alias 캡처 UX (영역 선택·스크롤 캡처 방식)
