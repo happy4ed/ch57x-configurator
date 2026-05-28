@@ -6,6 +6,7 @@ public static class Summarize
     public static string Of(Binding? b)
     {
         if (b is null || b.Type == BindingType.None) return "—";
+        if (!string.IsNullOrEmpty(b.Alias)) return b.Alias!;
         if (b.Type == BindingType.Key)
             return string.Join(" → ", (b.Steps ?? new()).Select(s =>
                 string.Join("+", (s.Mods ?? new()).Append(s.Code ?? "").Where(x => !string.IsNullOrEmpty(x))))).TrimEnd();

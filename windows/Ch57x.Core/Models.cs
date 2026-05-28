@@ -17,6 +17,9 @@ public sealed class Binding
     // serialized lowercase ("key"/"text"/"media"/"mouse"/"none") via global converter for web compat
     public BindingType Type { get; set; } = BindingType.None;
 
+    /// <summary>User-defined short label shown in HUD/UI instead of the auto summary. Web-compatible.</summary>
+    public string? Alias { get; set; }
+
     // key
     public List<Accord>? Steps { get; set; }
     public int Delay { get; set; }

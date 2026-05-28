@@ -102,8 +102,11 @@ function setBinding(keyId, b) {
 }
 
 // ---------- summaries ----------
+// `alias` is a user-defined label per binding — shown instead of the technical
+// summary when set. Same field name in JSON / windows app for cross-compat.
 function summarize(b) {
   if (!b) return "—";
+  if (b.alias) return b.alias;
   if (b.type === "key") {
     return (b.steps || []).map((s) =>
       [...(s.mods || []), s.code].filter(Boolean).join("+")
@@ -332,6 +335,7 @@ function renderEditor() {
   const TYPES = [["none", "없음"], ["key", "⌨ 키보드"], ["text", "📝 상용구"], ["media", "🎵 미디어"], ["mouse", "🖱 마우스"]];
   ed.innerHTML = `
     <h3>${esc(selected.title)} <span class="dim">· 레이어 ${curLayer + 1}</span></h3>
+    <label>별칭 (alias) <input id="edAlias" type="text" maxlength="20" placeholder="예: 복사, PS 브러시+ — 비우면 자동" value="${esc(b.alias || "")}"></label>
     <div class="type-btns" id="edTypeBtns">
       ${TYPES.map(([v, l]) => `<button type="button" class="type-btn ${v === type ? "active" : ""}" data-type="${v}">${l}</button>`).join("")}
     </div>
@@ -465,28 +469,30 @@ function readEditor() {
   if (!tEl) return { type: "none" };
   const type = tEl.value;
   const num = (id) => { const el = document.getElementById(id); return el ? Number(el.value) || 0 : 0; };
+  const alias = ($("#edAlias")?.value || "").trim() || undefined;
+  const tag = (b) => alias && b.type !== "none" ? { ...b, alias } : b;
   if (type === "key") {
     syncSteps();
     const steps = editSteps.filter((s) => s.mods.length || s.code);
-    if (!steps.length) return { type: "none" };
-    return { type: "key", steps, delay: num("edDelay") };
+    if (!steps.length) return tag({ type: "none" });
+    return tag({ type: "key", steps, delay: num("edDelay") });
   }
   if (type === "text") {
     const t = $("#edText").value;
-    if (!t) return { type: "none" };
-    return { type: "text", text: t, delay: num("edDelay") };
+    if (!t) return tag({ type: "none" });
+    return tag({ type: "text", text: t, delay: num("edDelay") });
   }
-  if (type === "media") return { type: "media", media: $("#edMedia").value };
+  if (type === "media") return tag({ type: "media", media: $("#edMedia").value });
   if (type === "mouse") {
     const action = $("#edMAct").value;
-    return {
+    return tag({
       type: "mouse",
       action,
       mods: [...document.querySelectorAll("[data-mmod].active")].map((e) => e.dataset.mmod),
       buttons: [...document.querySelectorAll("[data-mbtn].active")].map((e) => e.dataset.mbtn),
       dx: num("edDx"), dy: num("edDy"),
       delta: action === "wheel" ? ($("#whUp")?.classList.contains("active") ? 1 : -1) : 0,
-    };
+    });
   }
   return { type: "none" };
 }
@@ -613,10 +619,17 @@ async function download() {
     for (const li of seen) {
       const old = profile.layers[li] || {};
       const merged = byLayer[li];
-      // keep 상용구(text) bindings whose expansion matches the read-back key sequence
+      // preserve host-only metadata when the binding shape matches (alias + 상용구)
       for (const [keyId, b] of Object.entries(merged)) {
         const prev = old[keyId];
-        if (prev?.type === "text" && b.type === "key" && sameSteps(textToSteps(prev.text), b.steps)) merged[keyId] = prev;
+        if (!prev) continue;
+        // 상용구 보존: text 였는데 키시퀀스로 되돌아왔지만 같은 내용이면 text 로 되돌리기
+        if (prev.type === "text" && b.type === "key" && sameSteps(textToSteps(prev.text), b.steps)) {
+          merged[keyId] = prev;
+        } else if (prev.alias) {
+          // alias 는 호스트 전용 메타데이터라 기기 read 로 사라짐 — 기존 alias 살리기
+          merged[keyId] = { ...b, alias: prev.alias };
+        }
       }
       profile.layers[li] = merged;
       n += Object.keys(merged).length;
