@@ -11,6 +11,7 @@ public sealed class TrayIcon : IDisposable
     public Controller Controller { get; } = new();
     private MainWindow? _window;
     private HudWindow? _hud;
+    private EditWindow? _editor;
 
     public TrayIcon()
     {
@@ -66,6 +67,8 @@ public sealed class TrayIcon : IDisposable
         }
         menu.Items.Add(Item("프로필 폴더 열기", OpenProfileFolder));
         menu.Items.Add(Item("JSON 가져오기 (병합)…", ImportMergeDialog));
+        menu.Items.Add(new WinForms.ToolStripSeparator());
+        menu.Items.Add(Item("키 편집…", OpenEditor));
 
         menu.Items.Add(new WinForms.ToolStripSeparator());
         var hudItem = Item(_hud?.IsVisible == true ? "✓ HUD 보이기" : "HUD 보이기", ToggleHud);
@@ -87,6 +90,12 @@ public sealed class TrayIcon : IDisposable
     {
         var dlg = new WinForms.OpenFileDialog { Filter = "프로필 JSON|*.json|모든 파일|*.*", Title = "현재 프로필에 병합할 JSON 선택" };
         if (dlg.ShowDialog() == WinForms.DialogResult.OK) Controller.ImportMerge(dlg.FileName);
+    }
+
+    private void OpenEditor()
+    {
+        if (_editor == null) { _editor = new EditWindow(Controller); _editor.Closed += (_, _) => _editor = null; }
+        _editor.Show(); _editor.Activate();
     }
 
     private void ToggleHud()

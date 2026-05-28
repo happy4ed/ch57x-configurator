@@ -45,21 +45,22 @@ public partial class HudWindow : Window
 
         ProfileName.Text = _ctrl.Profile.Name ?? "(이름 없음)";
 
-        // layer tabs
+        // layer tabs — 버튼 색을 해당 레이어의 LED 색상으로 (구분 쉽게)
         LayerTabs.Children.Clear();
         for (int l = 0; l < 3; l++)
         {
             int idx = l;
+            var ledColor = LedColorBrush(_ctrl.Profile.Led.ElementAtOrDefault(l));
             var btn = new Button
             {
                 Content = "L" + (l + 1),
-                Padding = new Thickness(8, 2, 8, 2),
+                Padding = new Thickness(10, 3, 10, 3),
                 Margin = new Thickness(0, 0, 4, 0),
-                FontSize = 11,
-                Background = l == _layer ? (Brush)new SolidColorBrush(Color.FromRgb(0x2d, 0x6c, 0xdf)) : Brushes.Transparent,
+                FontSize = 11, FontWeight = FontWeights.Bold,
+                Background = ledColor ?? (l == _layer ? (Brush)new SolidColorBrush(Color.FromRgb(0x2d, 0x6c, 0xdf)) : Brushes.Transparent),
                 Foreground = Brushes.White,
-                BorderBrush = (Brush)new SolidColorBrush(Color.FromRgb(0x3a, 0x42, 0x50)),
-                BorderThickness = new Thickness(1),
+                BorderBrush = l == _layer ? (Brush)new SolidColorBrush(Color.FromRgb(0xff, 0xff, 0xff)) : (Brush)new SolidColorBrush(Color.FromRgb(0x3a, 0x42, 0x50)),
+                BorderThickness = new Thickness(l == _layer ? 2 : 1),
             };
             btn.Click += (_, _) => { _layer = idx; Refresh(); };
             LayerTabs.Children.Add(btn);
@@ -128,6 +129,26 @@ public partial class HudWindow : Window
             }
             Device.Children.Add(grid);
         }
+    }
+
+    // LED 모드/색상 → WPF Brush. mode 0(off)=null(기본색 유지), 5=흰색, 그 외는 color 코드별.
+    private static Brush? LedColorBrush(LedSetting? led)
+    {
+        if (led == null || led.Mode == 0) return null;
+        if (led.Mode == 5) return new SolidColorBrush(Color.FromArgb(0xcc, 0xee, 0xee, 0xee));
+        // color 1..7: red orange yellow green cyan blue purple — alpha ~80% 로 살짝 투명
+        Color c = led.Color switch
+        {
+            1 => Color.FromRgb(0xc0, 0x39, 0x2b),
+            2 => Color.FromRgb(0xe6, 0x7e, 0x22),
+            3 => Color.FromRgb(0xd4, 0xb1, 0x06),
+            4 => Color.FromRgb(0x2c, 0xa5, 0x4a),
+            5 => Color.FromRgb(0x17, 0xa2, 0xa2),
+            6 => Color.FromRgb(0x2d, 0x6c, 0xdf),
+            7 => Color.FromRgb(0x8e, 0x44, 0xad),
+            _ => Color.FromRgb(0x55, 0x55, 0x55),
+        };
+        return new SolidColorBrush(Color.FromArgb(0xcc, c.R, c.G, c.B));
     }
 
     private Border KnobCell(string sum)

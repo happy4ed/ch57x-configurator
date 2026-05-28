@@ -103,8 +103,9 @@ public partial class EditWindow : Window
     {
         var top = new TextBlock { Text = topLabel, FontSize = 11, FontWeight = FontWeights.Bold,
             Foreground = new SolidColorBrush(Color.FromRgb(0x8b, 0x93, 0xa1)) };
-        var sub = new TextBlock { Text = Summarize.Of(b), FontSize = 12, Foreground = Brushes.White,
-            TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.CharacterEllipsis };
+        // 편집 화면에선 alias + 기술 요약 둘 다 두 줄로 (HUD 는 alias 만)
+        var sub = new TextBlock { Text = Summarize.OfFull(b), FontSize = 13, Foreground = Brushes.White,
+            TextWrapping = TextWrapping.Wrap };
         var bound = b != null && b.Type != BindingType.None;
         var sp = new StackPanel();
         if (!string.IsNullOrEmpty(topLabel)) sp.Children.Add(top);
@@ -114,9 +115,9 @@ public partial class EditWindow : Window
             Background = new SolidColorBrush(Color.FromRgb(0x23, 0x28, 0x31)),
             BorderBrush = bound ? new SolidColorBrush(Color.FromRgb(0x33, 0xff, 0x78)) : new SolidColorBrush(Color.FromRgb(0x3a, 0x42, 0x50)),
             BorderThickness = new Thickness(1),
-            Padding = new Thickness(8, 6, 8, 6),
-            Margin = new Thickness(0, 0, 6, 0),
-            Width = wide ? 130 : 88, Height = wide ? 44 : 66,
+            Padding = new Thickness(10, 8, 10, 8),
+            Margin = new Thickness(0, 0, 8, 0),
+            Width = wide ? 200 : 130, MinHeight = wide ? 60 : 100,
             HorizontalContentAlignment = HorizontalAlignment.Left,
             VerticalContentAlignment = VerticalAlignment.Top,
             Content = sp,
