@@ -16,7 +16,10 @@ public sealed class ProfileManager
     public List<FileInfo> Files { get; private set; } = new();
 
     /// <summary>File path currently applied to the keyboard (best-effort).</summary>
-    public string? ActivePath { get; private set; }
+    public string? ActivePath { get; set; }
+
+    /// <summary>Default profile filename — auto-created if missing so the app always has one.</summary>
+    public const string DefaultName = "기본";
 
     public event Action? Changed;
     private readonly FileSystemWatcher _watcher;
@@ -43,6 +46,19 @@ public sealed class ProfileManager
         Files = new DirectoryInfo(Folder).GetFiles("*.json")
             .OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase).ToList();
         Changed?.Invoke();
+    }
+
+    /// <summary>Create "기본.json" if missing — guaranteed to exist after this call. Returns its path.</summary>
+    public string EnsureDefault()
+    {
+        var path = Path.Combine(Folder, DefaultName + ".json");
+        if (!File.Exists(path))
+        {
+            ProfileStore.Save(new Ch57x.Core.Profile { Name = DefaultName }, path);
+            Log.Write($"기본 프로필 생성: {DefaultName}.json");
+            Refresh();
+        }
+        return path;
     }
 
     /// <summary>Load + atomically upload a profile to the device. Returns true on success.</summary>

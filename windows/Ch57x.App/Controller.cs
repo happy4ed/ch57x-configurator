@@ -9,6 +9,18 @@ public sealed class Controller : IDisposable
     public Profile Profile { get; private set; } = new();
     public string? ProfilePath { get; private set; }
     public ProfileManager Profiles { get; } = new();
+    private readonly AppSettings _settings = AppSettings.Load();
+
+    public Controller()
+    {
+        // 영속 상태: 기본 프로필 보장 + 마지막 적용 프로필 자동 로드 (없으면 기본)
+        Profiles.EnsureDefault();
+        string? path = _settings.LastActiveProfile;
+        if (string.IsNullOrEmpty(path) || !File.Exists(path))
+            path = Path.Combine(Profiles.Folder, ProfileManager.DefaultName + ".json");
+        LoadProfile(path);
+        Profiles.ActivePath = ProfilePath; // 시작 시 ✓ 표시도 동기화
+    }
 
     public bool IsConnected => Device?.IsOpen == true;
     public event Action? Changed;
@@ -51,8 +63,28 @@ public sealed class Controller : IDisposable
         {
             int n = Device!.UploadProfile(Profile, (i, total) => { if (i == total) Log.Write($"업로드 진행 {i}/{total}"); });
             Log.Write($"✅ 업로드 완료 ({n} 패킷, 전체 레이어)");
+            // 키보드에 올린 내용을 호스트에도 자동 저장 — 다음에 키보드 읽기 해도 alias/text 살리려고
+            PersistActive();
         }
         catch (Exception ex) { Log.Error("업로드", ex); }
+    }
+
+    /// <summary>현재 메모리 프로필을 ProfilePath 에 저장 + settings.LastActiveProfile 갱신.</summary>
+    private void PersistActive()
+    {
+        // ProfilePath 없으면 기본 프로필로 폴백
+        if (string.IsNullOrEmpty(ProfilePath))
+            ProfilePath = Path.Combine(Profiles.Folder, ProfileManager.DefaultName + ".json");
+        try
+        {
+            ProfileStore.Save(Profile, ProfilePath);
+            Profiles.ActivePath = ProfilePath;
+            _settings.LastActiveProfile = ProfilePath;
+            _settings.Save();
+            Log.Write($"호스트 저장: {Path.GetFileName(ProfilePath)}");
+            Notify();
+        }
+        catch (Exception ex) { Log.Error("자동 저장", ex); }
     }
 
     /// <summary>Apply a managed profile (by file path) to the keyboard.</summary>
@@ -60,7 +92,17 @@ public sealed class Controller : IDisposable
     {
         if (!IsConnected) { Log.Write("먼저 연결하세요."); return false; }
         bool ok = Profiles.Apply(path, Device!);
-        if (ok) { try { Profile = ProfileStore.Load(path); ProfilePath = path; Notify(); } catch { } }
+        if (ok)
+        {
+            try
+            {
+                Profile = ProfileStore.Load(path);
+                ProfilePath = path;
+                _settings.LastActiveProfile = path; _settings.Save();
+                Notify();
+            }
+            catch (Exception ex) { Log.Error("프로필 로드", ex); }
+        }
         return ok;
     }
 
