@@ -8,6 +8,7 @@ public sealed class Controller : IDisposable
     public Ch57xDevice? Device { get; private set; }
     public Profile Profile { get; private set; } = new();
     public string? ProfilePath { get; private set; }
+    public ProfileManager Profiles { get; } = new();
 
     public bool IsConnected => Device?.IsOpen == true;
     public event Action? Changed;
@@ -54,11 +55,20 @@ public sealed class Controller : IDisposable
         catch (Exception ex) { Log.Error("업로드", ex); }
     }
 
-    public void SwitchLayer(int layer)
+    /// <summary>Apply a managed profile (by file path) to the keyboard.</summary>
+    public bool ApplyProfile(string path)
     {
-        if (!IsConnected) { Log.Write("먼저 연결하세요."); return; }
-        try { Device!.SwitchLayer(layer); Log.Write($"레이어 전환 명령 전송 (0xa1, layer {layer}) — 키보드 동작이 레이어 {layer}로 바뀌는지 확인하세요"); }
-        catch (Exception ex) { Log.Error("레이어 전환", ex); }
+        if (!IsConnected) { Log.Write("먼저 연결하세요."); return false; }
+        bool ok = Profiles.Apply(path, Device!);
+        if (ok) { try { Profile = ProfileStore.Load(path); ProfilePath = path; Notify(); } catch { } }
+        return ok;
+    }
+
+    /// <summary>Apply by 0-based index in the managed profile list (hotkey handler).</summary>
+    public bool ApplyProfileByIndex(int idx)
+    {
+        if (idx < 0 || idx >= Profiles.Files.Count) { Log.Write($"프로필 #{idx + 1} 없음"); return false; }
+        return ApplyProfile(Profiles.Files[idx].FullName);
     }
 
     public void ReadFromDevice()

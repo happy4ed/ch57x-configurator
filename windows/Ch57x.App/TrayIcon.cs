@@ -8,7 +8,8 @@ namespace Ch57x.App;
 public sealed class TrayIcon : IDisposable
 {
     private readonly WinForms.NotifyIcon _icon;
-    private readonly Controller _ctrl = new();
+    public Controller Controller { get; } = new();
+    private readonly HotkeyService _hotkeys;
     private MainWindow? _window;
 
     public TrayIcon()
@@ -20,13 +21,19 @@ public sealed class TrayIcon : IDisposable
             Text = "CH57x 설정기",
         };
         _icon.DoubleClick += (_, _) => ShowWindow();
-        _ctrl.Changed += UpdateTooltip;
-        BuildMenu();
+        Controller.Changed += () => { UpdateTooltip(); RebuildMenu(); };
+        Controller.Profiles.Changed += RebuildMenu;
+        _hotkeys = new HotkeyService(idx => Application.Current.Dispatcher.BeginInvoke(new Action(() => Controller.ApplyProfileByIndex(idx))));
+        RebuildMenu();
         UpdateTooltip();
+        Log.Write($"프로필 폴더: {Controller.Profiles.Folder}");
     }
 
-    private void BuildMenu()
+    private void RebuildMenu()
     {
+        var app = Application.Current;
+        if (app?.Dispatcher != null && !app.Dispatcher.CheckAccess()) { app.Dispatcher.Invoke(RebuildMenu); return; }
+
         var menu = new WinForms.ContextMenuStrip();
         WinForms.ToolStripMenuItem Item(string text, Action onClick)
         {
@@ -37,26 +44,65 @@ public sealed class TrayIcon : IDisposable
 
         menu.Items.Add(Item("열기 / 로그 보기", ShowWindow));
         menu.Items.Add(new WinForms.ToolStripSeparator());
-        menu.Items.Add(Item("키보드 연결", () => _ctrl.Connect()));
-        menu.Items.Add(Item("프로필 불러오기…", LoadProfileDialog));
-        menu.Items.Add(Item("키보드에 업로드", () => _ctrl.Upload()));
-        menu.Items.Add(Item("키보드에서 읽기", () => _ctrl.ReadFromDevice()));
+        menu.Items.Add(Item(Controller.IsConnected ? $"연결됨 — 재연결" : "키보드 연결", () => Controller.Connect()));
+
+        // profile list — quick apply (Ctrl+Alt+N hotkey shown)
+        var files = Controller.Profiles.Files;
+        menu.Items.Add(new WinForms.ToolStripSeparator());
+        if (files.Count == 0)
+        {
+            var empty = new WinForms.ToolStripMenuItem("(프로필 없음 — 폴더 열기)") { ForeColor = System.Drawing.Color.Gray };
+            empty.Click += (_, _) => OpenProfileFolder();
+            menu.Items.Add(empty);
+        }
+        else
+        {
+            for (int i = 0; i < files.Count; i++)
+            {
+                var f = files[i];
+                string label = Path.GetFileNameWithoutExtension(f.Name);
+                if (i < 9) label = $"{label}\tCtrl+Alt+{i + 1}";
+                var it = Item(label, () => Controller.ApplyProfile(f.FullName));
+                if (string.Equals(Controller.Profiles.ActivePath, f.FullName, StringComparison.OrdinalIgnoreCase))
+                    it.Checked = true;
+                menu.Items.Add(it);
+            }
+        }
+        menu.Items.Add(Item("프로필 폴더 열기", OpenProfileFolder));
+
+        menu.Items.Add(new WinForms.ToolStripSeparator());
+        menu.Items.Add(Item("키보드에서 읽기 (현재 설정)", () => Controller.ReadFromDevice()));
+        menu.Items.Add(Item("현재 설정 프로필로 저장…", SaveCurrentAsProfile));
         menu.Items.Add(new WinForms.ToolStripSeparator());
         menu.Items.Add(Item("종료", () => Application.Current.Shutdown()));
         _icon.ContextMenuStrip = menu;
     }
 
-    private void LoadProfileDialog()
+    private void OpenProfileFolder()
     {
-        var dlg = new WinForms.OpenFileDialog { Filter = "프로필 JSON|*.json|모든 파일|*.*" };
-        if (dlg.ShowDialog() == WinForms.DialogResult.OK) _ctrl.LoadProfile(dlg.FileName);
+        System.Diagnostics.Process.Start("explorer.exe", Controller.Profiles.Folder);
+    }
+
+    private void SaveCurrentAsProfile()
+    {
+        var dlg = new WinForms.SaveFileDialog
+        {
+            Filter = "프로필 JSON|*.json",
+            InitialDirectory = Controller.Profiles.Folder,
+            FileName = (Controller.Profile.Name ?? "profile") + ".json",
+        };
+        if (dlg.ShowDialog() == WinForms.DialogResult.OK)
+        {
+            Controller.SaveProfile(dlg.FileName);
+            Controller.Profiles.Refresh();
+        }
     }
 
     private void ShowWindow()
     {
         if (_window == null)
         {
-            _window = new MainWindow(_ctrl);
+            _window = new MainWindow(Controller);
             _window.Closed += (_, _) => _window = null;
         }
         _window.Show();
@@ -68,8 +114,9 @@ public sealed class TrayIcon : IDisposable
     {
         var app = Application.Current;
         if (app?.Dispatcher != null && !app.Dispatcher.CheckAccess()) { app.Dispatcher.Invoke(UpdateTooltip); return; }
-        _icon.Text = _ctrl.IsConnected ? $"CH57x — 연결됨" : "CH57x — 미연결";
+        var active = Controller.Profiles.ActivePath != null ? " · " + Path.GetFileNameWithoutExtension(Controller.Profiles.ActivePath) : "";
+        _icon.Text = Controller.IsConnected ? $"CH57x — 연결됨{active}" : "CH57x — 미연결";
     }
 
-    public void Dispose() { _icon.Visible = false; _icon.Dispose(); _ctrl.Dispose(); }
+    public void Dispose() { _hotkeys.Dispose(); _icon.Visible = false; _icon.Dispose(); Controller.Dispose(); }
 }
