@@ -12,9 +12,23 @@
                            DockPanel.Dock="Left" VerticalAlignment="Center"/>
                 <Button x:Name="BtnHide" Content="✕" DockPanel.Dock="Right" Width="20" Height="20"
                         Padding="0" FontSize="11" Background="Transparent" BorderThickness="0" Foreground="#8b93a1"/>
+                <TextBlock Text="🔒" DockPanel.Dock="Right" Margin="0,0,4,0" VerticalAlignment="Center" FontSize="11"
+                           Foreground="#8b93a1" ToolTip="HUD 잠금(클릭 통과). 해제하려면 트레이 메뉴에서."/>
             </DockPanel>
+            <StackPanel x:Name="ControlsRow" Orientation="Horizontal" Margin="0,0,0,6">
+                <TextBlock Text="크기" Foreground="#8b93a1" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                <Slider x:Name="ScaleSlider" Minimum="0.6" Maximum="2.0" Value="1.0" Width="90"
+                        TickFrequency="0.1" IsSnapToTickEnabled="False" VerticalAlignment="Center"/>
+                <TextBlock Text="투명도" Foreground="#8b93a1" FontSize="10" VerticalAlignment="Center" Margin="10,0,4,0"/>
+                <Slider x:Name="OpacitySlider" Minimum="0.3" Maximum="1.0" Value="0.92" Width="90"
+                        VerticalAlignment="Center"/>
+            </StackPanel>
             <StackPanel x:Name="LayerTabs" Orientation="Horizontal" Margin="0,0,0,6"/>
-            <StackPanel x:Name="Device" Orientation="Horizontal"/>
+            <StackPanel x:Name="Device" Orientation="Horizontal">
+                <StackPanel.LayoutTransform>
+                    <ScaleTransform x:Name="DeviceScale" ScaleX="1" ScaleY="1"/>
+                </StackPanel.LayoutTransform>
+            </StackPanel>
         </StackPanel>
     </Border>
 </Window>

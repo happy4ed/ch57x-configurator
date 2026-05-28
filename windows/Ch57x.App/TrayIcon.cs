@@ -73,6 +73,8 @@ public sealed class TrayIcon : IDisposable
         menu.Items.Add(new WinForms.ToolStripSeparator());
         var hudItem = Item(_hud?.IsVisible == true ? "✓ HUD 보이기" : "HUD 보이기", ToggleHud);
         menu.Items.Add(hudItem);
+        var lockItem = Item(HudSettings.Load().ClickThrough ? "✓ HUD 클릭 통과 (잠금)" : "HUD 클릭 통과 (잠금)", ToggleHudLock);
+        menu.Items.Add(lockItem);
         menu.Items.Add(new WinForms.ToolStripSeparator());
         menu.Items.Add(Item("키보드에서 읽기 (현재 설정)", () => Controller.ReadFromDevice()));
         menu.Items.Add(Item("현재 설정 프로필로 저장…", SaveCurrentAsProfile));
@@ -96,6 +98,15 @@ public sealed class TrayIcon : IDisposable
     {
         if (_editor == null) { _editor = new EditWindow(Controller); _editor.Closed += (_, _) => _editor = null; }
         _editor.Show(); _editor.Activate();
+    }
+
+    private void ToggleHudLock()
+    {
+        var s = HudSettings.Load();
+        s.ClickThrough = !s.ClickThrough;
+        s.Save();
+        Log.Write($"HUD 클릭 통과: {(s.ClickThrough ? "켜짐 (헤더만 잡힘)" : "꺼짐 (전체 잡힘)")}");
+        RebuildMenu();
     }
 
     private void ToggleHud()

@@ -1,6 +1,8 @@
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 using Ch57x.Core;
 
@@ -10,6 +12,7 @@ public partial class HudWindow : Window
 {
     private readonly Controller _ctrl;
     private int _layer = 0; // 0-based view layer (user-selected, since firmware active layer is unknown)
+    private readonly HudSettings _settings = HudSettings.Load();
 
     public HudWindow(Controller ctrl)
     {
@@ -18,25 +21,63 @@ public partial class HudWindow : Window
         _ctrl.Changed += Refresh;
         _ctrl.Profiles.Changed += Refresh;
 
-        // drag anywhere on the HUD body to move it
-        MouseLeftButtonDown += (_, _) => { if (Mouse.LeftButton == MouseButtonState.Pressed) DragMove(); };
+        // drag header to move; rest of the body is click-through (NCHITTEST hook)
+        HeaderPanel.MouseLeftButtonDown += (_, _) => { if (Mouse.LeftButton == MouseButtonState.Pressed) DragMove(); };
         BtnHide.Click += (_, _) => Hide();
 
-        // restore last position (saved to %AppData%\Ch57x\hud.txt as "x,y")
+        // sliders → scale + opacity, live + persisted
+        ScaleSlider.Value = _settings.Scale;
+        OpacitySlider.Value = _settings.Opacity;
+        DeviceScale.ScaleX = DeviceScale.ScaleY = _settings.Scale;
+        Opacity = _settings.Opacity;
+        ScaleSlider.ValueChanged += (_, e) => { DeviceScale.ScaleX = DeviceScale.ScaleY = e.NewValue; _settings.Scale = e.NewValue; _settings.Save(); };
+        OpacitySlider.ValueChanged += (_, e) => { Opacity = e.NewValue; _settings.Opacity = e.NewValue; _settings.Save(); };
+
         Loaded += (_, _) =>
         {
-            if (HudSettings.TryLoadPos(out double x, out double y)) { Left = x; Top = y; }
+            if (!double.IsNaN(_settings.X) && !double.IsNaN(_settings.Y))
+            { Left = _settings.X; Top = _settings.Y; }
             else
             {
-                // default: bottom-right corner with some margin
                 var wa = SystemParameters.WorkArea;
                 Left = wa.Right - Width - 16;
                 Top = wa.Bottom - Height - 16;
             }
         };
-        LocationChanged += (_, _) => HudSettings.SavePos(Left, Top);
+        LocationChanged += (_, _) => { _settings.X = Left; _settings.Y = Top; _settings.Save(); };
 
         Refresh();
+    }
+
+    // ---- Click-through hook ----
+    // We answer WM_NCHITTEST: header + layer tab row → HTCLIENT (interactive),
+    // everything else → HTTRANSPARENT (clicks pass through to whatever's behind).
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        var src = (HwndSource)PresentationSource.FromVisual(this)!;
+        src.AddHook(HitTestHook);
+    }
+
+    private const int WM_NCHITTEST = 0x0084;
+    private const int HTCLIENT = 1;
+    private const int HTTRANSPARENT = -1;
+
+    private IntPtr HitTestHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg != WM_NCHITTEST) return IntPtr.Zero;
+        if (!_settings.ClickThrough) return IntPtr.Zero; // 잠금 해제면 정상 동작
+        long lp = lParam.ToInt64();
+        short sx = unchecked((short)(lp & 0xFFFF));
+        short sy = unchecked((short)((lp >> 16) & 0xFFFF));
+        Point local;
+        try { local = PointFromScreen(new Point(sx, sy)); } catch { return IntPtr.Zero; }
+
+        // interactive zone = header + slider row + layer tabs (대략 위 헤더 영역).
+        double topZone = HeaderPanel.ActualHeight + ControlsRow.ActualHeight + LayerTabs.ActualHeight + 18 /* padding/margins */;
+        bool interactive = local.Y >= 0 && local.Y < topZone;
+        handled = true;
+        return new IntPtr(interactive ? HTCLIENT : HTTRANSPARENT);
     }
 
     private void Refresh()
@@ -184,29 +225,30 @@ public partial class HudWindow : Window
 
 }
 
-internal static class HudSettings
+internal sealed class HudSettings
 {
-    private static string Path => System.IO.Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Ch57x", "hud.txt");
+    public double X { get; set; } = double.NaN;
+    public double Y { get; set; } = double.NaN;
+    public double Scale { get; set; } = 1.0;
+    public double Opacity { get; set; } = 0.92;
+    public bool ClickThrough { get; set; } = true;
 
-    public static bool TryLoadPos(out double x, out double y)
+    private static string Path => System.IO.Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Ch57x", "hud.json");
+
+    public static HudSettings Load()
     {
-        x = y = 0;
-        try
-        {
-            if (!File.Exists(Path)) return false;
-            var parts = File.ReadAllText(Path).Split(',');
-            return parts.Length == 2 && double.TryParse(parts[0], out x) && double.TryParse(parts[1], out y);
-        }
-        catch { return false; }
+        try { if (File.Exists(Path)) return System.Text.Json.JsonSerializer.Deserialize<HudSettings>(File.ReadAllText(Path)) ?? new(); }
+        catch { }
+        return new();
     }
 
-    public static void SavePos(double x, double y)
+    public void Save()
     {
         try
         {
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Path)!);
-            File.WriteAllText(Path, $"{x},{y}");
+            File.WriteAllText(Path, System.Text.Json.JsonSerializer.Serialize(this));
         }
         catch { }
     }
