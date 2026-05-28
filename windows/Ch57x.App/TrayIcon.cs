@@ -17,7 +17,7 @@ public sealed class TrayIcon : IDisposable
     {
         _icon = new WinForms.NotifyIcon
         {
-            Icon = SystemIcons.Application,
+            Icon = LoadAppIcon(),
             Visible = true,
             Text = "CH57x 설정기",
         };
@@ -69,6 +69,9 @@ public sealed class TrayIcon : IDisposable
         menu.Items.Add(Item("JSON 가져오기 (병합)…", ImportMergeDialog));
         menu.Items.Add(new WinForms.ToolStripSeparator());
         menu.Items.Add(Item("키 편집…", OpenEditor));
+        menu.Items.Add(Item("프로필 백업 (.zip 내보내기)…", ExportBackupDialog));
+        menu.Items.Add(Item("프로필 복원 (.zip 불러오기)…", RestoreBackupDialog));
+        menu.Items.Add(Item(AutoStart.IsEnabled ? "✓ 윈도우 시작 시 자동실행" : "윈도우 시작 시 자동실행", ToggleAutoStart));
 
         menu.Items.Add(new WinForms.ToolStripSeparator());
         var hudItem = Item(_hud?.IsVisible == true ? "✓ HUD 보이기" : "HUD 보이기", ToggleHud);
@@ -92,6 +95,36 @@ public sealed class TrayIcon : IDisposable
     {
         var dlg = new WinForms.OpenFileDialog { Filter = "프로필 JSON|*.json|모든 파일|*.*", Title = "현재 프로필에 병합할 JSON 선택" };
         if (dlg.ShowDialog() == WinForms.DialogResult.OK) Controller.ImportMerge(dlg.FileName);
+    }
+
+    private void ExportBackupDialog()
+    {
+        var dlg = new WinForms.SaveFileDialog
+        {
+            Filter = "ZIP 백업|*.zip", FileName = $"ch57x-backup-{DateTime.Now:yyyyMMdd}.zip",
+        };
+        if (dlg.ShowDialog() != WinForms.DialogResult.OK) return;
+        try { ProfileBackup.ExportAll(Controller.Profiles.Folder, dlg.FileName); Log.Write($"백업 저장: {dlg.FileName}"); }
+        catch (Exception ex) { Log.Error("백업 내보내기", ex); }
+    }
+
+    private void RestoreBackupDialog()
+    {
+        var dlg = new WinForms.OpenFileDialog { Filter = "ZIP 백업|*.zip|모든 파일|*.*", Title = "복원할 백업 zip 선택" };
+        if (dlg.ShowDialog() != WinForms.DialogResult.OK) return;
+        try
+        {
+            var (n, _) = ProfileBackup.Restore(dlg.FileName, Controller.Profiles.Folder);
+            Controller.Profiles.Refresh();
+            Log.Write($"복원 완료: 프로필 {n}개");
+        }
+        catch (Exception ex) { Log.Error("백업 복원", ex); }
+    }
+
+    private void ToggleAutoStart()
+    {
+        try { AutoStart.Set(!AutoStart.IsEnabled); Log.Write($"자동실행: {(AutoStart.IsEnabled ? "켜짐" : "꺼짐")}"); RebuildMenu(); }
+        catch (Exception ex) { Log.Error("자동실행 설정", ex); }
     }
 
     private void OpenEditor()
@@ -156,4 +189,16 @@ public sealed class TrayIcon : IDisposable
     }
 
     public void Dispose() { _icon.Visible = false; _icon.Dispose(); Controller.Dispose(); }
+
+    private static Icon LoadAppIcon()
+    {
+        try
+        {
+            // Resource://...icon.ico (WPF Resource — set in csproj)
+            var uri = new Uri("pack://application:,,,/icon.ico", UriKind.Absolute);
+            using var s = System.Windows.Application.GetResourceStream(uri).Stream;
+            return new Icon(s);
+        }
+        catch { return SystemIcons.Application; }
+    }
 }

@@ -20,6 +20,33 @@ public sealed class Controller : IDisposable
             path = Path.Combine(Profiles.Folder, ProfileManager.DefaultName + ".json");
         LoadProfile(path);
         Profiles.ActivePath = ProfilePath; // 시작 시 ✓ 표시도 동기화
+
+        // 자동 USB 연결: 시작 시 한 번 시도 + 이후 디바이스 변경 시 자동 재연결
+        _ = System.Threading.Tasks.Task.Run(() => Connect());
+        HidSharp.DeviceList.Local.Changed += OnDeviceListChanged;
+    }
+
+    private void OnDeviceListChanged(object? sender, EventArgs e)
+    {
+        // 키보드가 새로 꽂혔는데 우리가 미연결이면 자동 연결.
+        // 반대로 꽂혔던 게 빠지면 연결 객체가 자연스럽게 죽으니 IsConnected = false 가 됨.
+        try
+        {
+            if (!IsConnected) { _ = System.Threading.Tasks.Task.Run(() => Connect()); }
+            else
+            {
+                // 빠진 경우 감지: 현재 device 가 더 이상 목록에 없으면 정리
+                var present = HidSharp.DeviceList.Local.GetHidDevices(Protocol.VendorId);
+                bool stillThere = present.Any(d => Protocol.ProductIds.Contains((ushort)d.ProductID));
+                if (!stillThere)
+                {
+                    Device?.Dispose(); Device = null;
+                    Log.Write("키보드 분리됨");
+                    Notify();
+                }
+            }
+        }
+        catch (Exception ex) { Log.Error("디바이스 변경 처리", ex); }
     }
 
     public bool IsConnected => Device?.IsOpen == true;
@@ -187,5 +214,9 @@ public sealed class Controller : IDisposable
         return true;
     }
 
-    public void Dispose() => Device?.Dispose();
+    public void Dispose()
+    {
+        HidSharp.DeviceList.Local.Changed -= OnDeviceListChanged;
+        Device?.Dispose();
+    }
 }

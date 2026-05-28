@@ -8,12 +8,14 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
     <AssemblyName>CH57x 설정기</AssemblyName>
     <RootNamespace>Ch57x.App</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Ch57x.Core\Ch57x.Core.csproj" />
+    <Resource Include="icon.ico" />
   </ItemGroup>
 
 </Project>
