@@ -102,11 +102,10 @@ function setBinding(keyId, b) {
 }
 
 // ---------- summaries ----------
-// `alias` is a user-defined label per binding — shown instead of the technical
-// summary when set. Same field name in JSON / windows app for cross-compat.
-function summarize(b) {
+// `alias` is a user-defined label per binding (same field name in JSON / windows app).
+// 웹에선 alias + 기술 요약 둘 다 표시(예: "복사 · Ctrl+C"). HUD(윈도우)는 alias 우선만.
+function technicalSummary(b) {
   if (!b) return "—";
-  if (b.alias) return b.alias;
   if (b.type === "key") {
     return (b.steps || []).map((s) =>
       [...(s.mods || []), s.code].filter(Boolean).join("+")
@@ -125,6 +124,14 @@ function summarize(b) {
     return "🖱 " + b.action;
   }
   return "—";
+}
+
+// 웹용 요약: alias 있으면 별칭과 기술 요약을 같이 표시.
+function summarize(b) {
+  if (!b) return "—";
+  const tech = technicalSummary(b);
+  if (b.alias) return tech && tech !== "—" ? `${b.alias} · ${tech}` : b.alias;
+  return tech;
 }
 
 // ---------- rendering ----------
