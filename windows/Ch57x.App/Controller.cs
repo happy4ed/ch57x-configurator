@@ -54,6 +54,13 @@ public sealed class Controller : IDisposable
         catch (Exception ex) { Log.Error("업로드", ex); }
     }
 
+    public void SwitchLayer(int layer)
+    {
+        if (!IsConnected) { Log.Write("먼저 연결하세요."); return; }
+        try { Device!.SwitchLayer(layer); Log.Write($"레이어 전환 명령 전송 (0xa1, layer {layer}) — 키보드 동작이 레이어 {layer}로 바뀌는지 확인하세요"); }
+        catch (Exception ex) { Log.Error("레이어 전환", ex); }
+    }
+
     public void ReadFromDevice()
     {
         if (!IsConnected) { Log.Write("먼저 연결하세요."); return; }

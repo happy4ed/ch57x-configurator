@@ -25,6 +25,9 @@ public partial class MainWindow : Window
         BtnRead.Click += (_, _) => _ctrl.ReadFromDevice();
         BtnSave.Click += (_, _) => SaveDialog();
         BtnClearLog.Click += (_, _) => Log.Lines.Clear();
+        BtnL1.Click += (_, _) => _ctrl.SwitchLayer(1);
+        BtnL2.Click += (_, _) => _ctrl.SwitchLayer(2);
+        BtnL3.Click += (_, _) => _ctrl.SwitchLayer(3);
 
         // hide instead of close (stay resident in tray)
         Closing += (_, e) => { e.Cancel = true; Hide(); };

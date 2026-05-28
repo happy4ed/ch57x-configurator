@@ -78,6 +78,15 @@ public sealed class Ch57xDevice : IDisposable
         foreach (var m in Protocol.BuildKeyMessages(keyId, layer, binding)) Send(m);
     }
 
+    /// <summary>EXPERIMENTAL: ask the keyboard to switch its active layer (0xa1). layer 1..3.
+    /// Vendor .NET app uses this (Send_SwLayer); unverified on this firmware.</summary>
+    public void SwitchLayer(int layer)
+    {
+        var pkt = new byte[Protocol.PacketSize];
+        pkt[0] = 0x03; pkt[1] = 0xa1; pkt[2] = (byte)Math.Clamp(layer, 1, 3);
+        Send(pkt);
+    }
+
     /// <summary>Read all 3 layers. Returns dict[layer (0-based)] -> dict[keyId -> Binding].</summary>
     public Dictionary<int, Dictionary<int, Binding>> ReadProfile(Action<int, int>? onProgress = null)
     {
