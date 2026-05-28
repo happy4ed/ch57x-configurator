@@ -3,3 +3,7 @@ Original Source/
 *.obj
 *.pdb
 vendor/
+
+# .NET
+windows/**/bin/
+windows/**/obj/
