@@ -1,0 +1,31 @@
+<Window x:Class="Ch57x.App.EditWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="키 편집 — CH57x" Height="520" Width="720"
+        Background="#0f1115" Foreground="#e6e9ef" FontSize="14">
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" Margin="0,0,0,8" LastChildFill="False">
+            <TextBlock x:Name="HeaderText" FontWeight="Bold" FontSize="15"
+                       Text="현재 프로필" VerticalAlignment="Center"/>
+            <TextBlock Text="  변경 후 '키보드에 업로드' 로 적용" Foreground="#8b93a1" VerticalAlignment="Center" Margin="6,0,0,0"/>
+        </DockPanel>
+
+        <StackPanel Grid.Row="1" x:Name="LayerTabs" Orientation="Horizontal" Margin="0,0,0,10"/>
+
+        <Border Grid.Row="2" Background="#181b22" BorderBrush="#2a2f3a" BorderThickness="1" CornerRadius="10" Padding="14">
+            <StackPanel x:Name="Device" Orientation="Horizontal"/>
+        </Border>
+
+        <DockPanel Grid.Row="3" Margin="0,12,0,0" LastChildFill="False">
+            <Button x:Name="BtnUpload" Content="키보드에 업로드" Padding="14,7" Background="#2d6cdf" Foreground="White" BorderThickness="0"/>
+            <Button x:Name="BtnReload" Content="다시 불러오기 (디스크에서)" Padding="14,7" Margin="8,0,0,0"/>
+        </DockPanel>
+    </Grid>
+</Window>

@@ -65,6 +65,7 @@ public sealed class TrayIcon : IDisposable
             }
         }
         menu.Items.Add(Item("프로필 폴더 열기", OpenProfileFolder));
+        menu.Items.Add(Item("JSON 가져오기 (병합)…", ImportMergeDialog));
 
         menu.Items.Add(new WinForms.ToolStripSeparator());
         var hudItem = Item(_hud?.IsVisible == true ? "✓ HUD 보이기" : "HUD 보이기", ToggleHud);
@@ -80,6 +81,12 @@ public sealed class TrayIcon : IDisposable
     private void OpenProfileFolder()
     {
         System.Diagnostics.Process.Start("explorer.exe", Controller.Profiles.Folder);
+    }
+
+    private void ImportMergeDialog()
+    {
+        var dlg = new WinForms.OpenFileDialog { Filter = "프로필 JSON|*.json|모든 파일|*.*", Title = "현재 프로필에 병합할 JSON 선택" };
+        if (dlg.ShowDialog() == WinForms.DialogResult.OK) Controller.ImportMerge(dlg.FileName);
     }
 
     private void ToggleHud()

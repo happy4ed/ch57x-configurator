@@ -20,7 +20,8 @@ public partial class MainWindow : Window
         RefreshStatus();
 
         BtnConnect.Click += (_, _) => _ctrl.Connect();
-        BtnLoad.Click += (_, _) => LoadDialog();
+        BtnLoad.Click += (_, _) => ImportDialog();
+        BtnEdit.Click += (_, _) => OpenEditor();
         BtnUpload.Click += (_, _) => _ctrl.Upload();
         BtnRead.Click += (_, _) => _ctrl.ReadFromDevice();
         BtnSave.Click += (_, _) => SaveDialog();
@@ -46,10 +47,17 @@ public partial class MainWindow : Window
         ProfileText.Text = $"프로필: {p.Name} · 키 {p.KeyCount}/노브 {p.KnobCount}";
     }
 
-    private void LoadDialog()
+    private void ImportDialog()
     {
-        var dlg = new WinForms.OpenFileDialog { Filter = "프로필 JSON|*.json|모든 파일|*.*" };
-        if (dlg.ShowDialog() == WinForms.DialogResult.OK) _ctrl.LoadProfile(dlg.FileName);
+        var dlg = new WinForms.OpenFileDialog { Filter = "프로필 JSON|*.json|모든 파일|*.*", Title = "현재 프로필에 병합할 JSON 선택" };
+        if (dlg.ShowDialog() == WinForms.DialogResult.OK) _ctrl.ImportMerge(dlg.FileName);
+    }
+
+    private EditWindow? _editor;
+    private void OpenEditor()
+    {
+        if (_editor == null) { _editor = new EditWindow(_ctrl); _editor.Closed += (_, _) => _editor = null; }
+        _editor.Show(); _editor.Activate();
     }
 
     private void SaveDialog()

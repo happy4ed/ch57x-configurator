@@ -50,6 +50,28 @@ public sealed class Controller : IDisposable
         catch (Exception ex) { Log.Error("프로필 불러오기", ex); }
     }
 
+    /// <summary>외부 JSON 의 키 바인딩/LED/이름을 현재 활성 프로필에 병합 + 자동 저장.
+    /// (웹에서 만든 alias 가 들어있는 JSON 을 현재 프로필에 끼워넣을 때 사용.)</summary>
+    public void ImportMerge(string path)
+    {
+        try
+        {
+            var src = ProfileStore.Load(path);
+            int merged = 0;
+            for (int li = 0; li < Math.Min(src.Layers.Count, Profile.Layers.Count); li++)
+                foreach (var (keyId, b) in src.Layers[li])
+                {
+                    Profile.Layers[li][keyId] = b; merged++;
+                }
+            for (int li = 0; li < Math.Min(src.Led.Count, Profile.Led.Count); li++)
+                Profile.Led[li] = src.Led[li];
+            if (!string.IsNullOrEmpty(src.Name)) Profile.Name = src.Name;
+            Log.Write($"📥 병합 완료: {Path.GetFileName(path)} → 현재 프로필 ({merged}개 키 덮어씀)");
+            PersistActive();
+        }
+        catch (Exception ex) { Log.Error("가져오기 병합", ex); }
+    }
+
     public void SaveProfile(string path)
     {
         try { ProfileStore.Save(Profile, path); ProfilePath = path; Log.Write($"프로필 저장: {Path.GetFileName(path)}"); }

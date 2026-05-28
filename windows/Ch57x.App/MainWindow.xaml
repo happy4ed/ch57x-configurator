@@ -17,7 +17,8 @@
 
         <WrapPanel Grid.Row="1" Margin="0,0,0,10">
             <Button x:Name="BtnConnect" Content="키보드 연결" Margin="0,0,8,8" Padding="12,6"/>
-            <Button x:Name="BtnLoad" Content="프로필 불러오기" Margin="0,0,8,8" Padding="12,6"/>
+            <Button x:Name="BtnLoad" Content="JSON 가져오기 (병합)" Margin="0,0,8,8" Padding="12,6"/>
+            <Button x:Name="BtnEdit" Content="키 편집" Margin="0,0,8,8" Padding="12,6"/>
             <Button x:Name="BtnUpload" Content="키보드에 업로드" Margin="0,0,8,8" Padding="12,6"/>
             <Button x:Name="BtnRead" Content="키보드에서 읽기" Margin="0,0,8,8" Padding="12,6"/>
             <Button x:Name="BtnSave" Content="프로필 저장" Margin="0,0,8,8" Padding="12,6"/>
