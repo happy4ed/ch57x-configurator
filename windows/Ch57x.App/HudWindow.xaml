@@ -24,11 +24,7 @@
                         VerticalAlignment="Center"/>
             </StackPanel>
             <StackPanel x:Name="LayerTabs" Orientation="Horizontal" Margin="0,0,0,6"/>
-            <StackPanel x:Name="Device" Orientation="Horizontal">
-                <StackPanel.LayoutTransform>
-                    <ScaleTransform x:Name="DeviceScale" ScaleX="1" ScaleY="1"/>
-                </StackPanel.LayoutTransform>
-            </StackPanel>
+            <StackPanel x:Name="Device" Orientation="Horizontal"/>
         </StackPanel>
     </Border>
 </Window>

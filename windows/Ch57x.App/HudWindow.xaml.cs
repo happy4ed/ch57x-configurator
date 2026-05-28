@@ -21,16 +21,16 @@ public partial class HudWindow : Window
         _ctrl.Changed += Refresh;
         _ctrl.Profiles.Changed += Refresh;
 
-        // drag header to move; rest of the body is click-through (NCHITTEST hook)
-        HeaderPanel.MouseLeftButtonDown += (_, _) => { if (Mouse.LeftButton == MouseButtonState.Pressed) DragMove(); };
+        // 헤더 드래그: 빈 공간 클릭만 이동, 자식 버튼/슬라이더는 그대로 동작
+        HeaderPanel.PreviewMouseLeftButtonDown += HeaderDragStart;
+        ControlsRow.PreviewMouseLeftButtonDown += HeaderDragStart; // 슬라이더 라인 빈 공간으로도 끌어 이동
         BtnHide.Click += (_, _) => Hide();
 
-        // sliders → scale + opacity, live + persisted
+        // sliders → box size scale (font fixed) + opacity. Live + persisted.
         ScaleSlider.Value = _settings.Scale;
         OpacitySlider.Value = _settings.Opacity;
-        DeviceScale.ScaleX = DeviceScale.ScaleY = _settings.Scale;
         Opacity = _settings.Opacity;
-        ScaleSlider.ValueChanged += (_, e) => { DeviceScale.ScaleX = DeviceScale.ScaleY = e.NewValue; _settings.Scale = e.NewValue; _settings.Save(); };
+        ScaleSlider.ValueChanged += (_, e) => { _settings.Scale = e.NewValue; _settings.Save(); Refresh(); };
         OpacitySlider.ValueChanged += (_, e) => { Opacity = e.NewValue; _settings.Opacity = e.NewValue; _settings.Save(); };
 
         Loaded += (_, _) =>
@@ -66,18 +66,43 @@ public partial class HudWindow : Window
     private IntPtr HitTestHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
         if (msg != WM_NCHITTEST) return IntPtr.Zero;
-        if (!_settings.ClickThrough) return IntPtr.Zero; // 잠금 해제면 정상 동작
+        if (!_settings.ClickThrough) return IntPtr.Zero; // 잠금 해제면 전체 잡힘
         long lp = lParam.ToInt64();
         short sx = unchecked((short)(lp & 0xFFFF));
         short sy = unchecked((short)((lp >> 16) & 0xFFFF));
         Point local;
         try { local = PointFromScreen(new Point(sx, sy)); } catch { return IntPtr.Zero; }
 
-        // interactive zone = header + slider row + layer tabs (대략 위 헤더 영역).
-        double topZone = HeaderPanel.ActualHeight + ControlsRow.ActualHeight + LayerTabs.ActualHeight + 18 /* padding/margins */;
-        bool interactive = local.Y >= 0 && local.Y < topZone;
+        // interactive = 헤더 + 슬라이더 행 + 레이어 탭(L1/L2/L3 버튼) 영역의 합집합.
+        // 각 element 의 실제 윈도우 좌표 + ActualWidth/Height 로 계산해서 정확.
+        bool interactive = Inside(HeaderPanel, local) || Inside(ControlsRow, local) || Inside(LayerTabs, local);
         handled = true;
         return new IntPtr(interactive ? HTCLIENT : HTTRANSPARENT);
+    }
+
+    private void HeaderDragStart(object s, MouseButtonEventArgs e)
+    {
+        // 자식이 Button/Slider/Thumb 등 인터랙티브 컨트롤이면 드래그 시작 안 함
+        var d = e.OriginalSource as DependencyObject;
+        while (d != null)
+        {
+            if (d is System.Windows.Controls.Primitives.ButtonBase) return;
+            if (d is Slider || d is System.Windows.Controls.Primitives.Thumb) return;
+            d = VisualTreeHelper.GetParent(d);
+        }
+        try { DragMove(); } catch { /* DragMove only valid with left button down */ }
+    }
+
+    private bool Inside(FrameworkElement el, Point pt)
+    {
+        if (el.ActualWidth <= 0 || el.ActualHeight <= 0) return false;
+        try
+        {
+            Point origin = el.TranslatePoint(new Point(0, 0), this);
+            var rect = new Rect(origin.X, origin.Y, el.ActualWidth, el.ActualHeight);
+            return rect.Contains(pt);
+        }
+        catch { return false; }
     }
 
     private void Refresh()
@@ -194,9 +219,10 @@ public partial class HudWindow : Window
 
     private Border KnobCell(string sum)
     {
+        double s = _settings.Scale;
         return new Border
         {
-            Width = 92, MinHeight = 22, Margin = new Thickness(0, 0, 4, 4), Padding = new Thickness(5, 2, 5, 2),
+            Width = 92 * s, MinHeight = 22 * s, Margin = new Thickness(0, 0, 4 * s, 4 * s), Padding = new Thickness(5, 2, 5, 2),
             CornerRadius = new CornerRadius(4),
             Background = (Brush)new SolidColorBrush(Color.FromRgb(0x23, 0x28, 0x31)),
             BorderBrush = (Brush)new SolidColorBrush(Color.FromRgb(0x3a, 0x42, 0x50)),
@@ -209,12 +235,13 @@ public partial class HudWindow : Window
 
     private Border Keycap(string topLabel, string sum)
     {
+        double s = _settings.Scale;
         var top = new TextBlock { Text = topLabel, Foreground = (Brush)new SolidColorBrush(Color.FromRgb(0x8b, 0x93, 0xa1)), FontSize = 9, FontWeight = FontWeights.Bold };
         var sub = new TextBlock { Text = sum, Foreground = Brushes.White, FontSize = 10,
             TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.CharacterEllipsis };
         return new Border
         {
-            Width = 72, Height = 52, Margin = new Thickness(0, 0, 4, 0), Padding = new Thickness(4, 3, 4, 3),
+            Width = 72 * s, Height = 52 * s, Margin = new Thickness(0, 0, 4 * s, 0), Padding = new Thickness(4, 3, 4, 3),
             CornerRadius = new CornerRadius(5),
             Background = (Brush)new SolidColorBrush(Color.FromRgb(0x23, 0x28, 0x31)),
             BorderBrush = (Brush)new SolidColorBrush(Color.FromRgb(0x3a, 0x42, 0x50)),
