@@ -16,9 +16,8 @@ public partial class EditKeyDialog : Window
     public Binding? Result { get; private set; }
     private readonly Binding _initial;
 
-    // editing state
-    private List<string> _mods = new();
-    private string? _code;
+    // editing state — keyboard supports up to 18 sequential steps
+    private List<Accord> _steps = new() { new Accord() };
     private int _delay;
     private string _text = "";
     private string _media = "VolumeUp";
@@ -39,8 +38,7 @@ public partial class EditKeyDialog : Window
         _type = _initial.Type switch { BindingType.Key => "key", BindingType.Text => "text", BindingType.Media => "media", BindingType.Mouse => "mouse", _ => "none" };
         if (_initial.Type == BindingType.Key && _initial.Steps?.Count > 0)
         {
-            _mods = _initial.Steps[0].Mods?.ToList() ?? new();
-            _code = _initial.Steps[0].Code;
+            _steps = _initial.Steps.Select(s => new Accord { Mods = s.Mods?.ToList() ?? new(), Code = s.Code }).ToList();
             _delay = _initial.Delay;
         }
         else if (_initial.Type == BindingType.Text) { _text = _initial.Text ?? ""; _delay = _initial.Delay; }
@@ -90,66 +88,19 @@ public partial class EditKeyDialog : Window
 
     private void RenderKeyBody()
     {
-        // mod toggle row
-        var modRow = new WrapPanel { Margin = new Thickness(0, 0, 0, 8) };
-        foreach (var m in new[] { "Ctrl", "Shift", "Alt", "Win" })
-        {
-            string mm = m;
-            var btn = new Button
-            {
-                Content = m, Padding = new Thickness(10, 6, 10, 6), Margin = new Thickness(0, 0, 6, 0),
-                Background = _mods.Contains(m) ? new SolidColorBrush(Color.FromRgb(0x2d, 0x6c, 0xdf)) : new SolidColorBrush(Color.FromRgb(0x21, 0x25, 0x2e)),
-                Foreground = Brushes.White, BorderBrush = new SolidColorBrush(Color.FromRgb(0x2a, 0x2f, 0x3a)),
-                BorderThickness = new Thickness(1),
-            };
-            btn.Click += (_, _) =>
-            {
-                if (_mods.Contains(mm)) _mods.Remove(mm); else _mods.Add(mm);
-                RenderBody();
-            };
-            modRow.Children.Add(btn);
-        }
-        Body.Children.Add(modRow);
+        if (_steps.Count == 0) _steps.Add(new Accord());
+        bool removable = _steps.Count > 1;
+        for (int i = 0; i < _steps.Count; i++) Body.Children.Add(StepRow(i, removable));
 
-        // key dropdown + capture
-        var keyRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 8) };
-        var combo = new ComboBox { Width = 220, Margin = new Thickness(0, 0, 8, 0) };
-        combo.Items.Add(new ComboBoxItem { Content = "(없음)", Tag = "" });
-        foreach (var (name, label) in KeyCodes.Order)
+        if (_steps.Count < 18)
         {
-            var it = new ComboBoxItem { Content = $"{label}  ({name})", Tag = name };
-            combo.Items.Add(it);
-            if (name == _code) combo.SelectedItem = it;
+            var add = new Button { Content = "+ 단계 추가", Padding = new Thickness(10, 5, 10, 5), Margin = new Thickness(0, 4, 0, 10),
+                Background = new SolidColorBrush(Color.FromRgb(0x21, 0x25, 0x2e)), Foreground = Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0x2a, 0x2f, 0x3a)), BorderThickness = new Thickness(1),
+                HorizontalAlignment = HorizontalAlignment.Left };
+            add.Click += (_, _) => { _steps.Add(new Accord()); RenderBody(); };
+            Body.Children.Add(add);
         }
-        if (combo.SelectedItem == null) combo.SelectedIndex = 0;
-        combo.SelectionChanged += (_, _) => _code = (combo.SelectedItem as ComboBoxItem)?.Tag as string;
-        keyRow.Children.Add(combo);
-
-        var capture = new TextBox
-        {
-            Width = 200, Padding = new Thickness(8, 6, 8, 6),
-            Background = new SolidColorBrush(Color.FromRgb(0x21, 0x25, 0x2e)),
-            Foreground = Brushes.White, BorderBrush = new SolidColorBrush(Color.FromRgb(0x2a, 0x2f, 0x3a)),
-            IsReadOnly = true, Text = "여기 클릭 후 키 누르기",
-        };
-        capture.PreviewKeyDown += (s, e) =>
-        {
-            e.Handled = true;
-            if (e.Key is Key.LeftCtrl or Key.RightCtrl or Key.LeftShift or Key.RightShift
-                or Key.LeftAlt or Key.RightAlt or Key.LWin or Key.RWin) return;
-            var name = WpfKeyToName(e.Key);
-            if (name == null) return;
-            _code = name;
-            _mods = new();
-            if ((Keyboard.Modifiers & ModifierKeys.Control) != 0) _mods.Add("Ctrl");
-            if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0) _mods.Add("Shift");
-            if ((Keyboard.Modifiers & ModifierKeys.Alt) != 0) _mods.Add("Alt");
-            if ((Keyboard.Modifiers & ModifierKeys.Windows) != 0) _mods.Add("Win");
-            capture.Text = name;
-            RenderBody();
-        };
-        keyRow.Children.Add(capture);
-        Body.Children.Add(keyRow);
 
         // delay
         var delayRow = new StackPanel { Orientation = Orientation.Horizontal };
@@ -160,6 +111,94 @@ public partial class EditKeyDialog : Window
         dly.TextChanged += (_, _) => int.TryParse(dly.Text, out _delay);
         delayRow.Children.Add(dly);
         Body.Children.Add(delayRow);
+        Body.Children.Add(Hint("여러 단계는 순서대로 입력됩니다 (최대 18). Ctrl+W 같은 브라우저 가로채기는 기본 키만 입력 후 수정자를 토글 버튼으로 켜세요."));
+    }
+
+    private FrameworkElement StepRow(int idx, bool removable)
+    {
+        var s = _steps[idx];
+        var outer = new Border
+        {
+            BorderBrush = new SolidColorBrush(Color.FromRgb(0x2a, 0x2f, 0x3a)),
+            BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(7),
+            Padding = new Thickness(8), Margin = new Thickness(0, 0, 0, 8),
+        };
+        var sp = new StackPanel();
+
+        // top: step number + modifier toggles + delete
+        var topRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 6) };
+        if (removable)
+        {
+            topRow.Children.Add(new Border
+            {
+                Width = 22, Height = 22, CornerRadius = new CornerRadius(11),
+                Background = new SolidColorBrush(Color.FromRgb(0x2d, 0x6c, 0xdf)),
+                Margin = new Thickness(0, 0, 8, 0),
+                Child = new TextBlock { Text = (idx + 1).ToString(), Foreground = Brushes.White, FontSize = 12,
+                    HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center },
+            });
+        }
+        foreach (var m in new[] { "Ctrl", "Shift", "Alt", "Win" })
+        {
+            string mm = m;
+            topRow.Children.Add(MakeToggle(m, s.Mods?.Contains(m) == true, () =>
+            {
+                s.Mods ??= new();
+                if (s.Mods.Contains(mm)) s.Mods.Remove(mm); else s.Mods.Add(mm);
+                RenderBody();
+            }));
+        }
+        if (removable)
+        {
+            var del = new Button { Content = "✕", Padding = new Thickness(8, 3, 8, 3), Margin = new Thickness(6, 0, 0, 0),
+                Background = new SolidColorBrush(Color.FromRgb(0x21, 0x25, 0x2e)), Foreground = Brushes.White,
+                BorderBrush = new SolidColorBrush(Color.FromRgb(0x2a, 0x2f, 0x3a)), BorderThickness = new Thickness(1) };
+            del.Click += (_, _) => { _steps.RemoveAt(idx); if (_steps.Count == 0) _steps.Add(new Accord()); RenderBody(); };
+            topRow.Children.Add(del);
+        }
+        sp.Children.Add(topRow);
+
+        // bottom: key dropdown + capture
+        var keyRow = new StackPanel { Orientation = Orientation.Horizontal };
+        var combo = new ComboBox { Width = 240, Margin = new Thickness(0, 0, 8, 0) };
+        combo.Items.Add(new ComboBoxItem { Content = "(없음)", Tag = "" });
+        foreach (var (name, label) in KeyCodes.Order)
+        {
+            var it = new ComboBoxItem { Content = $"{label}  ({name})", Tag = name };
+            combo.Items.Add(it);
+            if (name == s.Code) combo.SelectedItem = it;
+        }
+        if (combo.SelectedItem == null) combo.SelectedIndex = 0;
+        combo.SelectionChanged += (_, _) => s.Code = (combo.SelectedItem as ComboBoxItem)?.Tag as string;
+        keyRow.Children.Add(combo);
+
+        var capture = new TextBox
+        {
+            Width = 180, Padding = new Thickness(8, 6, 8, 6),
+            Background = new SolidColorBrush(Color.FromRgb(0x21, 0x25, 0x2e)),
+            Foreground = Brushes.White, BorderBrush = new SolidColorBrush(Color.FromRgb(0x2a, 0x2f, 0x3a)),
+            IsReadOnly = true, Text = "여기 클릭 후 키 누르기", TextAlignment = TextAlignment.Center,
+        };
+        capture.PreviewKeyDown += (_, e) =>
+        {
+            e.Handled = true;
+            if (e.Key is Key.LeftCtrl or Key.RightCtrl or Key.LeftShift or Key.RightShift
+                or Key.LeftAlt or Key.RightAlt or Key.LWin or Key.RWin) return;
+            var name = WpfKeyToName(e.Key);
+            if (name == null) return;
+            s.Code = name;
+            s.Mods = new();
+            if ((Keyboard.Modifiers & ModifierKeys.Control) != 0) s.Mods.Add("Ctrl");
+            if ((Keyboard.Modifiers & ModifierKeys.Shift) != 0) s.Mods.Add("Shift");
+            if ((Keyboard.Modifiers & ModifierKeys.Alt) != 0) s.Mods.Add("Alt");
+            if ((Keyboard.Modifiers & ModifierKeys.Windows) != 0) s.Mods.Add("Win");
+            RenderBody();
+        };
+        keyRow.Children.Add(capture);
+        sp.Children.Add(keyRow);
+
+        outer.Child = sp;
+        return outer;
     }
 
     private void RenderTextBody()
@@ -280,9 +319,13 @@ public partial class EditKeyDialog : Window
         string alias = TxtAlias.Text.Trim();
         Binding? b = _type switch
         {
-            "key" => (_mods.Count > 0 || !string.IsNullOrEmpty(_code))
-                ? new Binding { Type = BindingType.Key, Steps = new() { new Accord { Mods = _mods, Code = _code } }, Delay = _delay }
-                : new Binding { Type = BindingType.None },
+            "key" => (() => {
+                var steps = _steps.Where(s => (s.Mods?.Count ?? 0) > 0 || !string.IsNullOrEmpty(s.Code))
+                    .Select(s => new Accord { Mods = s.Mods?.ToList() ?? new(), Code = s.Code }).ToList();
+                return steps.Count == 0
+                    ? new Binding { Type = BindingType.None }
+                    : new Binding { Type = BindingType.Key, Steps = steps, Delay = _delay };
+            })(),
             "text" => string.IsNullOrEmpty(_text)
                 ? new Binding { Type = BindingType.None }
                 : new Binding { Type = BindingType.Text, Text = _text, Delay = _delay },

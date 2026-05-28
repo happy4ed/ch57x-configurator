@@ -20,7 +20,12 @@
         <StackPanel Grid.Row="1" x:Name="LayerTabs" Orientation="Horizontal" Margin="0,0,0,10"/>
 
         <Border Grid.Row="2" Background="#181b22" BorderBrush="#2a2f3a" BorderThickness="1" CornerRadius="10" Padding="14">
-            <StackPanel x:Name="Device" Orientation="Horizontal"/>
+            <StackPanel>
+                <StackPanel x:Name="Device" Orientation="Horizontal"/>
+                <Border BorderBrush="#2a2f3a" BorderThickness="0,1,0,0" Margin="0,14,0,0" Padding="0,12,0,0">
+                    <StackPanel x:Name="LedPanel" Orientation="Horizontal"/>
+                </Border>
+            </StackPanel>
         </Border>
 
         <DockPanel Grid.Row="3" Margin="0,12,0,0" LastChildFill="False">

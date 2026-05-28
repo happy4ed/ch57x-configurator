@@ -97,6 +97,80 @@ public partial class EditWindow : Window
                 }
             Device.Children.Add(grid);
         }
+
+        RenderLed();
+    }
+
+    // LED 패널 — 레이어별 모드/색상 선택. 변경 즉시 자동 저장.
+    private static readonly (int Mode, string Label)[] LedModes =
+    {
+        (0, "끄기"), (1, "백라이트(색상)"), (5, "백라이트 흰색"),
+        (4, "누르면 켜짐(색상)"), (2, "누르면 효과1(색상)"), (3, "누르면 효과2(색상)"),
+    };
+    private static readonly (int V, string Label, byte R, byte G, byte B)[] LedColors =
+    {
+        (1, "빨강", 0xc0, 0x39, 0x2b), (2, "주황", 0xe6, 0x7e, 0x22),
+        (3, "노랑", 0xd4, 0xb1, 0x06), (4, "초록", 0x2c, 0xa5, 0x4a),
+        (5, "청록", 0x17, 0xa2, 0xa2), (6, "파랑", 0x2d, 0x6c, 0xdf),
+        (7, "보라", 0x8e, 0x44, 0xad),
+    };
+
+    private void RenderLed()
+    {
+        LedPanel.Children.Clear();
+        var led = _ctrl.Profile.Led[_layer];
+        bool usesColor = led.Mode != 0 && led.Mode != 5;
+
+        LedPanel.Children.Add(new TextBlock
+        {
+            Text = "💡 LED  레이어 " + (_layer + 1),
+            FontWeight = FontWeights.Bold, VerticalAlignment = VerticalAlignment.Center,
+            Margin = new Thickness(0, 0, 12, 0),
+        });
+
+        // mode buttons
+        var modeBox = new WrapPanel { Margin = new Thickness(0, 0, 12, 0) };
+        foreach (var (mode, label) in LedModes)
+        {
+            int mm = mode;
+            var b = new Button
+            {
+                Content = label, Padding = new Thickness(10, 5, 10, 5), Margin = new Thickness(0, 0, 6, 0),
+                Background = led.Mode == mode ? new SolidColorBrush(Color.FromRgb(0x2d, 0x6c, 0xdf)) : new SolidColorBrush(Color.FromRgb(0x21, 0x25, 0x2e)),
+                Foreground = Brushes.White, BorderBrush = new SolidColorBrush(Color.FromRgb(0x2a, 0x2f, 0x3a)),
+                BorderThickness = new Thickness(1),
+            };
+            b.Click += (_, _) => { _ctrl.Profile.Led[_layer].Mode = mm; PersistAndRefresh(); };
+            modeBox.Children.Add(b);
+        }
+        LedPanel.Children.Add(modeBox);
+
+        // color swatches (only when mode uses a color)
+        var colorBox = new WrapPanel { Margin = new Thickness(0, 0, 0, 0) };
+        foreach (var (v, label, r, g, bC) in LedColors)
+        {
+            int vv = v;
+            var sw = new Button
+            {
+                Width = 28, Height = 28, Padding = new Thickness(0), Margin = new Thickness(0, 0, 4, 0),
+                Background = new SolidColorBrush(Color.FromRgb(r, g, bC)),
+                BorderBrush = (usesColor && led.Color == v) ? Brushes.White : new SolidColorBrush(Color.FromRgb(0x2a, 0x2f, 0x3a)),
+                BorderThickness = new Thickness(usesColor && led.Color == v ? 2 : 1),
+                ToolTip = label,
+                IsEnabled = usesColor,
+                Opacity = usesColor ? 1.0 : 0.35,
+            };
+            sw.Click += (_, _) => { _ctrl.Profile.Led[_layer].Color = vv; PersistAndRefresh(); };
+            colorBox.Children.Add(sw);
+        }
+        LedPanel.Children.Add(colorBox);
+    }
+
+    private void PersistAndRefresh()
+    {
+        try { if (_ctrl.ProfilePath != null) ProfileStore.Save(_ctrl.Profile, _ctrl.ProfilePath); }
+        catch (Exception ex) { Log.Error("프로필 저장", ex); }
+        Refresh();
     }
 
     private Border Keycap(string topLabel, Binding? b, Action onClick, bool wide = false)
