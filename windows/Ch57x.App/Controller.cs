@@ -112,6 +112,19 @@ public sealed class Controller : IDisposable
         try
         {
             var map = Device!.ReadProfile((l, t) => Log.Write($"읽기 레이어 {l}/{t}"));
+            // 펌웨어엔 프로필명 슬롯이 없어 PC가 어느 프로필인지 모른다 →
+            // 모든 호스트 프로필을 키 바인딩 핑거프린트로 매칭해 가장 잘 맞는 걸 자동 식별.
+            var (best, _) = ProfileMatcher.Identify(Profiles, map);
+            if (best != null && best.Ratio >= 0.7)
+            {
+                Log.Write($"🎯 키보드 내용 = '{best.Profile.Name}' 으로 식별 ({best.Score}/{best.Total} = {best.Ratio:P0})");
+                Profile = best.Profile;
+                ProfilePath = best.Path;
+                Profiles.ActivePath = best.Path;
+                _settings.LastActiveProfile = best.Path; _settings.Save();
+            }
+            else if (best != null)
+                Log.Write($"⚠ 매칭 점수 낮음 (최고 '{best.Profile.Name}' = {best.Ratio:P0}). 메타데이터(alias/상용구) 일부만 보존될 수 있음.");
             int total = 0;
             foreach (var (layer, keys) in map)
             {
