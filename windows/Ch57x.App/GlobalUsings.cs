@@ -12,3 +12,7 @@ global using Orientation = System.Windows.Controls.Orientation;
 global using HorizontalAlignment = System.Windows.HorizontalAlignment;
 global using VerticalAlignment = System.Windows.VerticalAlignment;
 global using Binding = Ch57x.Core.Binding;
+global using TextBox = System.Windows.Controls.TextBox;
+global using ComboBox = System.Windows.Controls.ComboBox;
+global using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
+global using Label = System.Windows.Controls.Label;
