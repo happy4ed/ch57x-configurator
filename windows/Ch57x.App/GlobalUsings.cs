@@ -11,3 +11,4 @@ global using Color = System.Windows.Media.Color;
 global using Orientation = System.Windows.Controls.Orientation;
 global using HorizontalAlignment = System.Windows.HorizontalAlignment;
 global using VerticalAlignment = System.Windows.VerticalAlignment;
+global using Binding = Ch57x.Core.Binding;
