@@ -10,6 +10,7 @@ public sealed class TrayIcon : IDisposable
     private readonly WinForms.NotifyIcon _icon;
     public Controller Controller { get; } = new();
     private MainWindow? _window;
+    private HudWindow? _hud;
 
     public TrayIcon()
     {
@@ -66,6 +67,9 @@ public sealed class TrayIcon : IDisposable
         menu.Items.Add(Item("프로필 폴더 열기", OpenProfileFolder));
 
         menu.Items.Add(new WinForms.ToolStripSeparator());
+        var hudItem = Item(_hud?.IsVisible == true ? "✓ HUD 보이기" : "HUD 보이기", ToggleHud);
+        menu.Items.Add(hudItem);
+        menu.Items.Add(new WinForms.ToolStripSeparator());
         menu.Items.Add(Item("키보드에서 읽기 (현재 설정)", () => Controller.ReadFromDevice()));
         menu.Items.Add(Item("현재 설정 프로필로 저장…", SaveCurrentAsProfile));
         menu.Items.Add(new WinForms.ToolStripSeparator());
@@ -76,6 +80,17 @@ public sealed class TrayIcon : IDisposable
     private void OpenProfileFolder()
     {
         System.Diagnostics.Process.Start("explorer.exe", Controller.Profiles.Folder);
+    }
+
+    private void ToggleHud()
+    {
+        if (_hud == null)
+        {
+            _hud = new HudWindow(Controller);
+            _hud.Closed += (_, _) => { _hud = null; RebuildMenu(); };
+        }
+        if (_hud.IsVisible) _hud.Hide(); else { _hud.Show(); _hud.Activate(); }
+        RebuildMenu();
     }
 
     private void SaveCurrentAsProfile()
