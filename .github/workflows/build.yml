@@ -1,0 +1,35 @@
+name: build-windows-app
+
+# 코드가 push 되면 윈도우에서 자동 빌드 → 단독 실행파일(.exe) 생성.
+# 사용자는 Actions 실행 결과의 Artifacts 에서 zip 을 받아 풀고 .exe 더블클릭만 하면 됨.
+on:
+  push:
+    branches: [ master ]
+    paths: [ 'windows/**', '.github/workflows/build.yml' ]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Publish single-file self-contained exe
+        run: >
+          dotnet publish windows/Ch57x.App/Ch57x.App.csproj
+          -c Release -r win-x64 --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -o publish
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CH57x-설정기-win-x64
+          path: publish/*.exe
+          if-no-files-found: error
