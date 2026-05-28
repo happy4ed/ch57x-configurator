@@ -16,3 +16,5 @@ global using TextBox = System.Windows.Controls.TextBox;
 global using ComboBox = System.Windows.Controls.ComboBox;
 global using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
 global using Label = System.Windows.Controls.Label;
+global using Point = System.Windows.Point;
+global using Size = System.Windows.Size;
