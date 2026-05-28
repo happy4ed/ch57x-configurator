@@ -83,25 +83,65 @@ public partial class HudWindow : Window
         }
         Device.Children.Add(keys);
 
-        // dials column (right) — one row per knob, action chips beside
+        // dials (right) — table: col headers K1..Kn, row headers ↺/↓/↻ (shown once each)
         if (_ctrl.Profile.KnobCount > 0)
         {
-            var dials = new StackPanel { Orientation = Orientation.Vertical, Margin = new Thickness(8, 0, 0, 0) };
-            for (int k = 0; k < _ctrl.Profile.KnobCount; k++)
+            int knobs = _ctrl.Profile.KnobCount;
+            var grid = new Grid { Margin = new Thickness(10, 0, 0, 0) };
+            // column 0 = row header (icon); columns 1..knobs = each knob
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            for (int k = 0; k < knobs; k++) grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            // row 0 = column header (K1..Kn); rows 1..3 = action rows
+            grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            for (int r = 0; r < 3; r++) grid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+            // column headers K1..Kn
+            for (int k = 0; k < knobs; k++)
             {
-                var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 4) };
-                row.Children.Add(new TextBlock { Text = $"K{k + 1}", Foreground = (Brush)new SolidColorBrush(Color.FromRgb(0x8b, 0x93, 0xa1)), FontSize = 10, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 4, 0), Width = 18 });
-                string[] icons = { "↺", "↓", "↻" };
+                var th = new TextBlock { Text = $"K{k + 1}", FontSize = 10, FontWeight = FontWeights.Bold,
+                    Foreground = (Brush)new SolidColorBrush(Color.FromRgb(0x8b, 0x93, 0xa1)),
+                    HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 0, 4, 4) };
+                Grid.SetRow(th, 0); Grid.SetColumn(th, k + 1);
+                grid.Children.Add(th);
+            }
+            // row headers ↺ ↓ ↻
+            string[] icons = { "↺", "↓", "↻" };
+            for (int a = 0; a < 3; a++)
+            {
+                var rh = new TextBlock { Text = icons[a], FontSize = 12,
+                    Foreground = (Brush)new SolidColorBrush(Color.FromRgb(0x8b, 0x93, 0xa1)),
+                    VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 6, 4) };
+                Grid.SetRow(rh, a + 1); Grid.SetColumn(rh, 0);
+                grid.Children.Add(rh);
+            }
+            // cells
+            for (int k = 0; k < knobs; k++)
+            {
                 for (int a = 0; a < 3; a++)
                 {
                     int knobKeyId = 16 + 3 * k + a;
                     _ctrl.Profile.Layers[_layer].TryGetValue(knobKeyId, out var b);
-                    row.Children.Add(Chip(icons[a], Summarize.Of(b)));
+                    var cell = KnobCell(Summarize.Of(b));
+                    Grid.SetRow(cell, a + 1); Grid.SetColumn(cell, k + 1);
+                    grid.Children.Add(cell);
                 }
-                dials.Children.Add(row);
             }
-            Device.Children.Add(dials);
+            Device.Children.Add(grid);
         }
+    }
+
+    private Border KnobCell(string sum)
+    {
+        return new Border
+        {
+            Width = 84, Height = 22, Margin = new Thickness(0, 0, 4, 4), Padding = new Thickness(5, 1, 5, 1),
+            CornerRadius = new CornerRadius(4),
+            Background = (Brush)new SolidColorBrush(Color.FromRgb(0x23, 0x28, 0x31)),
+            BorderBrush = (Brush)new SolidColorBrush(Color.FromRgb(0x3a, 0x42, 0x50)),
+            BorderThickness = new Thickness(1),
+            Child = new TextBlock { Text = sum, Foreground = Brushes.White, FontSize = 10,
+                TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center },
+        };
     }
 
     private Border Keycap(string topLabel, string sum)
@@ -119,20 +159,6 @@ public partial class HudWindow : Window
         };
     }
 
-    private Border Chip(string icon, string sum)
-    {
-        var ic = new TextBlock { Text = icon, Foreground = (Brush)new SolidColorBrush(Color.FromRgb(0x8b, 0x93, 0xa1)), FontSize = 11, Margin = new Thickness(0, 0, 4, 0) };
-        var t = new TextBlock { Text = sum, Foreground = Brushes.White, FontSize = 10, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis };
-        return new Border
-        {
-            Width = 110, Height = 22, Margin = new Thickness(0, 0, 4, 0), Padding = new Thickness(5, 1, 5, 1),
-            CornerRadius = new CornerRadius(4),
-            Background = (Brush)new SolidColorBrush(Color.FromRgb(0x23, 0x28, 0x31)),
-            BorderBrush = (Brush)new SolidColorBrush(Color.FromRgb(0x3a, 0x42, 0x50)),
-            BorderThickness = new Thickness(1),
-            Child = new StackPanel { Orientation = Orientation.Horizontal, Children = { ic, t } },
-        };
-    }
 }
 
 internal static class HudSettings

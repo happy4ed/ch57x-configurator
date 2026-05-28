@@ -74,6 +74,20 @@ public sealed class Controller : IDisposable
             foreach (var (layer, keys) in map)
             {
                 if (layer < 0 || layer >= Profile.Layers.Count) continue;
+                var old = Profile.Layers[layer];
+                // 호스트 전용 메타(상용구/별칭)는 펌웨어에 안 저장되므로 read 결과에 보존해 끼워준다
+                foreach (var (keyId, b) in keys.ToList())
+                {
+                    if (!old.TryGetValue(keyId, out var prev)) continue;
+                    // 상용구 보존: text 였는데 키시퀀스로 되돌아왔고 확장 결과가 같으면 text 그대로
+                    if (prev.Type == BindingType.Text && b.Type == BindingType.Key
+                        && SameSteps(Protocol.TextToSteps(prev.Text ?? ""), b.Steps))
+                    {
+                        keys[keyId] = prev; continue;
+                    }
+                    // 별칭 보존
+                    if (!string.IsNullOrEmpty(prev.Alias)) b.Alias = prev.Alias;
+                }
                 Profile.Layers[layer] = keys;
                 total += keys.Count;
             }
@@ -81,6 +95,19 @@ public sealed class Controller : IDisposable
             Notify();
         }
         catch (Exception ex) { Log.Error("불러오기", ex); }
+    }
+
+    private static bool SameSteps(List<Accord> a, List<Accord>? b)
+    {
+        if (b == null || a.Count != b.Count) return false;
+        for (int i = 0; i < a.Count; i++)
+        {
+            if ((a[i].Code ?? "") != (b[i].Code ?? "")) return false;
+            var ma = (a[i].Mods ?? new()).OrderBy(x => x);
+            var mb = (b[i].Mods ?? new()).OrderBy(x => x);
+            if (!ma.SequenceEqual(mb)) return false;
+        }
+        return true;
     }
 
     public void Dispose() => Device?.Dispose();
