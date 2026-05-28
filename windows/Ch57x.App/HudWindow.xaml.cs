@@ -134,23 +134,25 @@ public partial class HudWindow : Window
     {
         return new Border
         {
-            Width = 84, Height = 22, Margin = new Thickness(0, 0, 4, 4), Padding = new Thickness(5, 1, 5, 1),
+            Width = 92, MinHeight = 22, Margin = new Thickness(0, 0, 4, 4), Padding = new Thickness(5, 2, 5, 2),
             CornerRadius = new CornerRadius(4),
             Background = (Brush)new SolidColorBrush(Color.FromRgb(0x23, 0x28, 0x31)),
             BorderBrush = (Brush)new SolidColorBrush(Color.FromRgb(0x3a, 0x42, 0x50)),
             BorderThickness = new Thickness(1),
             Child = new TextBlock { Text = sum, Foreground = Brushes.White, FontSize = 10,
-                TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center },
+                TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.CharacterEllipsis,
+                VerticalAlignment = VerticalAlignment.Center },
         };
     }
 
     private Border Keycap(string topLabel, string sum)
     {
         var top = new TextBlock { Text = topLabel, Foreground = (Brush)new SolidColorBrush(Color.FromRgb(0x8b, 0x93, 0xa1)), FontSize = 9, FontWeight = FontWeights.Bold };
-        var sub = new TextBlock { Text = sum, Foreground = Brushes.White, FontSize = 10, TextWrapping = TextWrapping.NoWrap, TextTrimming = TextTrimming.CharacterEllipsis };
+        var sub = new TextBlock { Text = sum, Foreground = Brushes.White, FontSize = 10,
+            TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.CharacterEllipsis };
         return new Border
         {
-            Width = 64, Height = 44, Margin = new Thickness(0, 0, 4, 0), Padding = new Thickness(4, 3, 4, 3),
+            Width = 72, Height = 52, Margin = new Thickness(0, 0, 4, 0), Padding = new Thickness(4, 3, 4, 3),
             CornerRadius = new CornerRadius(5),
             Background = (Brush)new SolidColorBrush(Color.FromRgb(0x23, 0x28, 0x31)),
             BorderBrush = (Brush)new SolidColorBrush(Color.FromRgb(0x3a, 0x42, 0x50)),

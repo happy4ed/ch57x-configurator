@@ -126,11 +126,11 @@ function technicalSummary(b) {
   return "—";
 }
 
-// 웹용 요약: alias 있으면 별칭과 기술 요약을 같이 표시.
+// 웹용 요약: alias 있으면 별칭 위, 기술 요약 아래 (줄바꿈 — CSS 가 pre-line 처리).
 function summarize(b) {
   if (!b) return "—";
   const tech = technicalSummary(b);
-  if (b.alias) return tech && tech !== "—" ? `${b.alias} · ${tech}` : b.alias;
+  if (b.alias) return tech && tech !== "—" ? `${b.alias}\n${tech}` : b.alias;
   return tech;
 }
 
