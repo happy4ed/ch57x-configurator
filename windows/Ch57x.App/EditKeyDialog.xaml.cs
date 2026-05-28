@@ -319,13 +319,7 @@ public partial class EditKeyDialog : Window
         string alias = TxtAlias.Text.Trim();
         Binding? b = _type switch
         {
-            "key" => (() => {
-                var steps = _steps.Where(s => (s.Mods?.Count ?? 0) > 0 || !string.IsNullOrEmpty(s.Code))
-                    .Select(s => new Accord { Mods = s.Mods?.ToList() ?? new(), Code = s.Code }).ToList();
-                return steps.Count == 0
-                    ? new Binding { Type = BindingType.None }
-                    : new Binding { Type = BindingType.Key, Steps = steps, Delay = _delay };
-            })(),
+            "key" => BuildKeyBinding(),
             "text" => string.IsNullOrEmpty(_text)
                 ? new Binding { Type = BindingType.None }
                 : new Binding { Type = BindingType.Text, Text = _text, Delay = _delay },
@@ -343,6 +337,17 @@ public partial class EditKeyDialog : Window
         };
         if (b != null && b.Type != BindingType.None && !string.IsNullOrEmpty(alias)) b.Alias = alias;
         return b;
+    }
+
+    private Binding BuildKeyBinding()
+    {
+        var steps = _steps
+            .Where(s => (s.Mods?.Count ?? 0) > 0 || !string.IsNullOrEmpty(s.Code))
+            .Select(s => new Accord { Mods = s.Mods?.ToList() ?? new(), Code = s.Code })
+            .ToList();
+        return steps.Count == 0
+            ? new Binding { Type = BindingType.None }
+            : new Binding { Type = BindingType.Key, Steps = steps, Delay = _delay };
     }
 
     /// <summary>Map WPF Key enum to our keycode names (limited subset that covers the common cases).</summary>
