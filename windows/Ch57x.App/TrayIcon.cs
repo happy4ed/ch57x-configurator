@@ -9,7 +9,6 @@ public sealed class TrayIcon : IDisposable
 {
     private readonly WinForms.NotifyIcon _icon;
     public Controller Controller { get; } = new();
-    private readonly HotkeyService _hotkeys;
     private MainWindow? _window;
 
     public TrayIcon()
@@ -23,7 +22,6 @@ public sealed class TrayIcon : IDisposable
         _icon.DoubleClick += (_, _) => ShowWindow();
         Controller.Changed += () => { UpdateTooltip(); RebuildMenu(); };
         Controller.Profiles.Changed += RebuildMenu;
-        _hotkeys = new HotkeyService(idx => Application.Current.Dispatcher.BeginInvoke(new Action(() => Controller.ApplyProfileByIndex(idx))));
         RebuildMenu();
         UpdateTooltip();
         Log.Write($"프로필 폴더: {Controller.Profiles.Folder}");
@@ -57,12 +55,9 @@ public sealed class TrayIcon : IDisposable
         }
         else
         {
-            for (int i = 0; i < files.Count; i++)
+            foreach (var f in files)
             {
-                var f = files[i];
-                string label = Path.GetFileNameWithoutExtension(f.Name);
-                if (i < 9) label = $"{label}\tCtrl+Alt+{i + 1}";
-                var it = Item(label, () => Controller.ApplyProfile(f.FullName));
+                var it = Item(Path.GetFileNameWithoutExtension(f.Name), () => Controller.ApplyProfile(f.FullName));
                 if (string.Equals(Controller.Profiles.ActivePath, f.FullName, StringComparison.OrdinalIgnoreCase))
                     it.Checked = true;
                 menu.Items.Add(it);
@@ -118,5 +113,5 @@ public sealed class TrayIcon : IDisposable
         _icon.Text = Controller.IsConnected ? $"CH57x — 연결됨{active}" : "CH57x — 미연결";
     }
 
-    public void Dispose() { _hotkeys.Dispose(); _icon.Visible = false; _icon.Dispose(); Controller.Dispose(); }
+    public void Dispose() { _icon.Visible = false; _icon.Dispose(); Controller.Dispose(); }
 }

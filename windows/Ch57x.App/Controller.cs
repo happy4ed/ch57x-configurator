@@ -64,13 +64,6 @@ public sealed class Controller : IDisposable
         return ok;
     }
 
-    /// <summary>Apply by 0-based index in the managed profile list (hotkey handler).</summary>
-    public bool ApplyProfileByIndex(int idx)
-    {
-        if (idx < 0 || idx >= Profiles.Files.Count) { Log.Write($"프로필 #{idx + 1} 없음"); return false; }
-        return ApplyProfile(Profiles.Files[idx].FullName);
-    }
-
     public void ReadFromDevice()
     {
         if (!IsConnected) { Log.Write("먼저 연결하세요."); return; }
