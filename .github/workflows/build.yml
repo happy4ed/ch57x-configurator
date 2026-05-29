@@ -26,7 +26,6 @@ jobs:
           -c Release -r win-x64 --self-contained false
           -p:PublishSingleFile=true
           -p:IncludeNativeLibrariesForSelfExtract=true
-          -p:EnableCompressionInSingleFile=true
           -p:DebugType=None -p:DebugSymbols=false
           -o publish-slim
 
