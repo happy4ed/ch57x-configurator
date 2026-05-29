@@ -18,18 +18,40 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Publish single-file self-contained exe
+      # ──────── Slim: framework-dependent (~5MB).
+      # 실행하려면 PC 에 .NET 8 Desktop Runtime 필요(없으면 윈도우가 자동 다운로드 안내).
+      - name: Publish slim (framework-dependent)
+        run: >
+          dotnet publish windows/Ch57x.App/Ch57x.App.csproj
+          -c Release -r win-x64 --self-contained false
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:EnableCompressionInSingleFile=true
+          -p:DebugType=None -p:DebugSymbols=false
+          -o publish-slim
+
+      - name: Upload slim
+        uses: actions/upload-artifact@v4
+        with:
+          name: CH57x-설정기-slim-win-x64
+          path: publish-slim/*.exe
+          if-no-files-found: error
+
+      # ──────── Portable: self-contained (~30MB) — 런타임 설치 필요 없음, 어디서나 실행.
+      - name: Publish portable (self-contained)
         run: >
           dotnet publish windows/Ch57x.App/Ch57x.App.csproj
           -c Release -r win-x64 --self-contained true
           -p:PublishSingleFile=true
           -p:IncludeNativeLibrariesForSelfExtract=true
           -p:EnableCompressionInSingleFile=true
-          -o publish
+          -p:PublishReadyToRun=false
+          -p:DebugType=None -p:DebugSymbols=false
+          -o publish-portable
 
-      - name: Upload artifact
+      - name: Upload portable
         uses: actions/upload-artifact@v4
         with:
-          name: CH57x-설정기-win-x64
-          path: publish/*.exe
+          name: CH57x-설정기-portable-win-x64
+          path: publish-portable/*.exe
           if-no-files-found: error
