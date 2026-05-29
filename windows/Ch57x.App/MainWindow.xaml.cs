@@ -1,6 +1,5 @@
 using System.Collections.Specialized;
 using System.Windows;
-using WinForms = System.Windows.Forms;
 
 namespace Ch57x.App;
 
@@ -19,16 +18,11 @@ public partial class MainWindow : Window
         _ctrl.Changed += RefreshStatus;
         RefreshStatus();
 
-        BtnConnect.Click += (_, _) => _ctrl.Connect();
-        BtnLoad.Click += (_, _) => ImportDialog();
-        BtnEdit.Click += (_, _) => OpenEditor();
         BtnUpload.Click += (_, _) => _ctrl.Upload();
         BtnRead.Click += (_, _) => _ctrl.ReadFromDevice();
-        BtnSave.Click += (_, _) => SaveDialog();
         BtnClearLog.Click += (_, _) => Log.Lines.Clear();
-        BtnOpenFolder.Click += (_, _) => System.Diagnostics.Process.Start("explorer.exe", _ctrl.Profiles.Folder);
 
-        // hide instead of close (stay resident in tray)
+        // 닫지 않고 숨김 (트레이 상주)
         Closing += (_, e) => { e.Cancel = true; Hide(); };
     }
 
@@ -45,24 +39,5 @@ public partial class MainWindow : Window
             ? System.Windows.Media.Brushes.LimeGreen : System.Windows.Media.Brushes.Gray;
         var p = _ctrl.Profile;
         ProfileText.Text = $"프로필: {p.Name} · 키 {p.KeyCount}/노브 {p.KnobCount}";
-    }
-
-    private void ImportDialog()
-    {
-        var dlg = new WinForms.OpenFileDialog { Filter = "프로필 JSON|*.json|모든 파일|*.*", Title = "현재 프로필에 병합할 JSON 선택" };
-        if (dlg.ShowDialog() == WinForms.DialogResult.OK) _ctrl.ImportMerge(dlg.FileName);
-    }
-
-    private EditWindow? _editor;
-    private void OpenEditor()
-    {
-        if (_editor == null) { _editor = new EditWindow(_ctrl); _editor.Closed += (_, _) => _editor = null; }
-        _editor.Show(); _editor.Activate();
-    }
-
-    private void SaveDialog()
-    {
-        var dlg = new WinForms.SaveFileDialog { Filter = "프로필 JSON|*.json", FileName = (_ctrl.Profile.Name ?? "profile") + ".json" };
-        if (dlg.ShowDialog() == WinForms.DialogResult.OK) _ctrl.SaveProfile(dlg.FileName);
     }
 }

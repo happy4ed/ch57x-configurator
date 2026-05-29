@@ -16,14 +16,9 @@
         </DockPanel>
 
         <WrapPanel Grid.Row="1" Margin="0,0,0,10">
-            <Button x:Name="BtnConnect" Content="키보드 연결" Margin="0,0,8,8" Padding="12,6"/>
-            <Button x:Name="BtnLoad" Content="JSON 가져오기 (병합)" Margin="0,0,8,8" Padding="12,6"/>
-            <Button x:Name="BtnEdit" Content="키 편집" Margin="0,0,8,8" Padding="12,6"/>
             <Button x:Name="BtnUpload" Content="키보드에 업로드" Margin="0,0,8,8" Padding="12,6"/>
             <Button x:Name="BtnRead" Content="키보드에서 읽기" Margin="0,0,8,8" Padding="12,6"/>
-            <Button x:Name="BtnSave" Content="프로필 저장" Margin="0,0,8,8" Padding="12,6"/>
             <Button x:Name="BtnClearLog" Content="로그 지우기" Margin="0,0,8,8" Padding="12,6"/>
-            <Button x:Name="BtnOpenFolder" Content="프로필 폴더 열기" Margin="0,0,8,8" Padding="12,6"/>
         </WrapPanel>
 
         <ListBox x:Name="LogList" Grid.Row="2" Background="#0b0d11" Foreground="#9fe6a0"
