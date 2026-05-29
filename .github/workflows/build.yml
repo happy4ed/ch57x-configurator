@@ -37,23 +37,8 @@ jobs:
           if-no-files-found: error
 
       # ──────── Portable: self-contained (~30MB) — 런타임 설치 필요 없음, 어디서나 실행.
-      - name: Publish portable (self-contained, trimmed)
-        run: >
-          dotnet publish windows/Ch57x.App/Ch57x.App.csproj
-          -c Release -r win-x64 --self-contained true
-          -p:PublishSingleFile=true
-          -p:IncludeNativeLibrariesForSelfExtract=true
-          -p:EnableCompressionInSingleFile=true
-          -p:PublishReadyToRun=false
-          -p:PublishTrimmed=true
-          -p:TrimMode=partial
-          -p:SuppressTrimAnalysisWarnings=true
-          -p:DebugType=None -p:DebugSymbols=false
-          -o publish-portable
-        continue-on-error: true
-
-      - name: Publish portable (fallback, no trim)
-        if: failure()
+      # WPF self-contained 는 약 60MB 가 한계 (런타임+WPF 어셈블리). 트림은 WPF 호환성 깨짐.
+      - name: Publish portable (self-contained)
         run: >
           dotnet publish windows/Ch57x.App/Ch57x.App.csproj
           -c Release -r win-x64 --self-contained true
