@@ -5,15 +5,24 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="False" ResizeMode="NoResize"
         SizeToContent="WidthAndHeight" Opacity="0.92">
-    <Border CornerRadius="10" Background="#dd0f1115" BorderBrush="#3a4250" BorderThickness="1" Padding="10">
+    <Border CornerRadius="10" Background="Transparent" BorderThickness="0" Padding="10">
         <StackPanel x:Name="Root" Orientation="Vertical">
-            <DockPanel x:Name="HeaderPanel" Margin="0,0,0,6" LastChildFill="False">
-                <TextBlock x:Name="ProfileName" Text="—" Foreground="#e6e9ef" FontSize="13" FontWeight="Bold"
-                           DockPanel.Dock="Left" VerticalAlignment="Center"/>
-                <Button x:Name="BtnHide" Content="✕" DockPanel.Dock="Right" Width="20" Height="20"
-                        Padding="0" FontSize="11" Background="Transparent" BorderThickness="0" Foreground="#8b93a1"/>
-                <TextBlock Text="🔒" DockPanel.Dock="Right" Margin="0,0,4,0" VerticalAlignment="Center" FontSize="11"
-                           Foreground="#8b93a1" ToolTip="HUD 잠금(클릭 통과). 해제하려면 트레이 메뉴에서."/>
+            <!-- 헤더: [닫기] [잠금] [핸들/레이블] 좌측 정렬. 배경 완전 투명 — Transparent 는 보이지 않지만 hit-test 는 되어 빈 헤더 드래그 가능 -->
+            <DockPanel x:Name="HeaderPanel" Margin="0,0,0,6" LastChildFill="True" Background="Transparent">
+                <Button x:Name="BtnHide" Content="✕" DockPanel.Dock="Left" Width="20" Height="20"
+                        Padding="0" FontSize="11" Background="Transparent" BorderThickness="0" Foreground="#8b93a1"
+                        VerticalAlignment="Center" ToolTip="HUD 닫기"/>
+                <TextBlock x:Name="LockIcon" Text="🔒" DockPanel.Dock="Left" Margin="6,0,8,0" VerticalAlignment="Center"
+                           FontSize="11" Foreground="#8b93a1"
+                           ToolTip="HUD 잠금(클릭 통과). 해제하려면 트레이 메뉴에서."/>
+                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
+                    <!-- 레이블 위 드래그 핸들: 여기를 잡고 HUD 이동 -->
+                    <Border x:Name="DragHandle" Background="#26ffffff" CornerRadius="3" Padding="10,0" Margin="0,0,0,2"
+                            HorizontalAlignment="Left" Cursor="SizeAll" ToolTip="여기를 잡고 HUD 이동">
+                        <TextBlock Text="≡" Foreground="#aeb6c4" FontSize="12" HorizontalAlignment="Center"/>
+                    </Border>
+                    <TextBlock x:Name="ProfileName" Text="—" Foreground="#e6e9ef" FontSize="13" FontWeight="Bold"/>
+                </StackPanel>
             </DockPanel>
             <StackPanel x:Name="ControlsRow" Orientation="Horizontal" Margin="0,0,0,6">
                 <TextBlock Text="크기" Foreground="#8b93a1" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
