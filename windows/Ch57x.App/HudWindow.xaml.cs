@@ -49,35 +49,64 @@ public partial class HudWindow : Window
         Refresh();
     }
 
-    // ---- Click-through hook ----
-    // We answer WM_NCHITTEST: header + layer tab row → HTCLIENT (interactive),
-    // everything else → HTTRANSPARENT (clicks pass through to whatever's behind).
+    // ---- Click-through: 동적으로 WS_EX_TRANSPARENT 플래그 토글 ----
+    // 평소엔 윈도우 전체가 마우스 이벤트를 아래로 통과시키고(투명),
+    // 마우스가 interactive 영역(헤더/슬라이더/레이어탭) 위로 들어오면 그 순간만 잡음.
+    // 100ms polling 으로 마우스 위치 추적해서 토글.
+
+    [DllImport("user32.dll", SetLastError = true)] private static extern int GetWindowLong(IntPtr hwnd, int nIndex);
+    [DllImport("user32.dll", SetLastError = true)] private static extern int SetWindowLong(IntPtr hwnd, int nIndex, int dwNewLong);
+    [DllImport("user32.dll")] private static extern bool GetCursorPos(out POINT lpPoint);
+    [StructLayout(LayoutKind.Sequential)] private struct POINT { public int X; public int Y; }
+
+    private const int GWL_EXSTYLE = -20;
+    private const int WS_EX_TRANSPARENT = 0x00000020;
+
+    private IntPtr _hwnd;
+    private System.Windows.Threading.DispatcherTimer? _hitTracker;
+
     protected override void OnSourceInitialized(EventArgs e)
     {
         base.OnSourceInitialized(e);
-        var src = (HwndSource)PresentationSource.FromVisual(this)!;
-        src.AddHook(HitTestHook);
+        _hwnd = new WindowInteropHelper(this).Handle;
+        ApplyClickThrough(true); // initial: 통과 ON
+
+        _hitTracker = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(80) };
+        _hitTracker.Tick += (_, _) => UpdateClickThrough();
+        _hitTracker.Start();
+
+        IsVisibleChanged += (_, _) =>
+        {
+            if (IsVisible) _hitTracker?.Start(); else _hitTracker?.Stop();
+        };
     }
 
-    private const int WM_NCHITTEST = 0x0084;
-    private const int HTCLIENT = 1;
-    private const int HTTRANSPARENT = -1;
-
-    private IntPtr HitTestHook(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    private void UpdateClickThrough()
     {
-        if (msg != WM_NCHITTEST) return IntPtr.Zero;
-        if (!_settings.ClickThrough) return IntPtr.Zero; // 잠금 해제면 전체 잡힘
-        long lp = lParam.ToInt64();
-        short sx = unchecked((short)(lp & 0xFFFF));
-        short sy = unchecked((short)((lp >> 16) & 0xFFFF));
+        if (!IsVisible) return;
+        if (!_settings.ClickThrough) { ApplyClickThrough(false); return; }
+        if (!GetCursorPos(out POINT p)) return;
         Point local;
-        try { local = PointFromScreen(new Point(sx, sy)); } catch { return IntPtr.Zero; }
+        try { local = PointFromScreen(new Point(p.X, p.Y)); } catch { return; }
+        bool overInteractive = Inside(HeaderPanel, local) || Inside(ControlsRow, local) || Inside(LayerTabs, local);
+        ApplyClickThrough(!overInteractive);
+    }
 
-        // interactive = 헤더 + 슬라이더 행 + 레이어 탭(L1/L2/L3 버튼) 영역의 합집합.
-        // 각 element 의 실제 윈도우 좌표 + ActualWidth/Height 로 계산해서 정확.
-        bool interactive = Inside(HeaderPanel, local) || Inside(ControlsRow, local) || Inside(LayerTabs, local);
-        handled = true;
-        return new IntPtr(interactive ? HTCLIENT : HTTRANSPARENT);
+    private void ApplyClickThrough(bool transparent)
+    {
+        if (_hwnd == IntPtr.Zero) return;
+        int ex = GetWindowLong(_hwnd, GWL_EXSTYLE);
+        bool isOn = (ex & WS_EX_TRANSPARENT) != 0;
+        if (transparent && !isOn) SetWindowLong(_hwnd, GWL_EXSTYLE, ex | WS_EX_TRANSPARENT);
+        else if (!transparent && isOn) SetWindowLong(_hwnd, GWL_EXSTYLE, ex & ~WS_EX_TRANSPARENT);
+    }
+
+    /// <summary>Tray menu 에서 잠금 토글했을 때 즉시 반영용.</summary>
+    public void ReloadSettingsAndApply()
+    {
+        var fresh = HudSettings.Load();
+        _settings.ClickThrough = fresh.ClickThrough;
+        UpdateClickThrough();
     }
 
     private void HeaderDragStart(object s, MouseButtonEventArgs e)

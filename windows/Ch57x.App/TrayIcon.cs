@@ -138,6 +138,7 @@ public sealed class TrayIcon : IDisposable
         var s = HudSettings.Load();
         s.ClickThrough = !s.ClickThrough;
         s.Save();
+        _hud?.ReloadSettingsAndApply(); // 떠있는 HUD 가 즉시 새 상태 반영
         Log.Write($"HUD 클릭 통과: {(s.ClickThrough ? "켜짐 (헤더만 잡힘)" : "꺼짐 (전체 잡힘)")}");
         RebuildMenu();
     }
