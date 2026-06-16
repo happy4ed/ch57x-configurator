@@ -123,7 +123,14 @@ public sealed class TrayIcon : IDisposable
 
     private void ToggleAutoStart()
     {
-        try { AutoStart.Set(!AutoStart.IsEnabled); Log.Write($"자동실행: {(AutoStart.IsEnabled ? "켜짐" : "꺼짐")}"); RebuildMenu(); }
+        try
+        {
+            AutoStart.Set(!AutoStart.IsEnabled);
+            Log.Write(AutoStart.IsEnabled
+                ? $"자동실행: 켜짐 → {AutoStart.RegisteredCommand}"
+                : "자동실행: 꺼짐");
+            RebuildMenu();
+        }
         catch (Exception ex) { Log.Error("자동실행 설정", ex); }
     }
 

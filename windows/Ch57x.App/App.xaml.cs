@@ -38,6 +38,15 @@ public partial class App : Application
         // 윈도우 로그아웃/종료 시 정리하고 즉시 죽기
         SessionEnding += (_, _) => ForceExit();
 
+        // 자동실행 자가 치유: portable 새 빌드를 다른 위치로 받아 실행하면 Run 키가 옛 exe 를
+        // 가리킨 채로 남아 재부팅 후 구버전 실행/미실행이 됨 → 매 시작 시 현재 exe 로 갱신.
+        try
+        {
+            if (AutoStart.SyncIfEnabled())
+                Log.Write($"자동실행 등록 경로를 현재 실행 파일로 갱신함:\n{AutoStart.RegisteredCommand}");
+        }
+        catch (Exception ex) { Log.Error("자동실행 경로 동기화", ex); }
+
         Log.Write("시작됨. 트레이 아이콘에서 메뉴를 여세요.");
         _tray = new TrayIcon();
     }
