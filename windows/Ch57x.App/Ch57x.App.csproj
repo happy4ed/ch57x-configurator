@@ -11,6 +11,18 @@
     <ApplicationIcon>icon.ico</ApplicationIcon>
     <AssemblyName>CH57x 설정기</AssemblyName>
     <RootNamespace>Ch57x.App</RootNamespace>
+
+    <!-- exe 속성 창(자세히 탭)과 앱의 「정보」에 그대로 나가는 값. 한 곳에서만 정한다. -->
+    <Product>CH57x 설정기</Product>
+    <AssemblyTitle>CH57x 매크로 키보드 설정기</AssemblyTitle>
+    <Description>CH57x 칩 기반 미니 매크로 키보드(VID 1189) 설정 도구 — 트레이 상주 · 프로필 전환 · HUD</Description>
+    <Company>happy4ed</Company>
+    <Authors>happy4ed</Authors>
+    <Copyright>© 2026 happy4ed. MIT License.</Copyright>
+    <Version>0.2.0</Version>
+    <FileVersion>0.2.0.0</FileVersion>
+    <AssemblyVersion>0.2.0.0</AssemblyVersion>
+    <RepositoryUrl>https://github.com/happy4ed/ch57x-configurator</RepositoryUrl>
   </PropertyGroup>
 
   <ItemGroup>

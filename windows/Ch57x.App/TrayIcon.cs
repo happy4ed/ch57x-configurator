@@ -101,8 +101,16 @@ public sealed class TrayIcon : IDisposable
         menu.Items.Add(Item("키보드에서 읽기 (현재 설정)", () => Controller.ReadFromDevice()));
         menu.Items.Add(Item("현재 설정 프로필로 저장…", SaveCurrentAsProfile));
         menu.Items.Add(new WinForms.ToolStripSeparator());
+        menu.Items.Add(Item("정보 (버전·저작권)…", ShowAbout));
         menu.Items.Add(Item("종료", () => Application.Current.Shutdown()));
         _icon.ContextMenuStrip = menu;
+    }
+
+    private AboutWindow? _about;
+    private void ShowAbout()
+    {
+        if (_about == null) { _about = new AboutWindow(Controller.Profiles.Folder); _about.Closed += (_, _) => _about = null; }
+        _about.Show(); _about.Activate();
     }
 
     private void OpenProfileFolder()

@@ -138,7 +138,20 @@ public static class AutoStart
         if (dst.Exists && dst.Length == src.Length && dst.LastWriteTimeUtc >= src.LastWriteTimeUtc) return false;
 
         File.Copy(current, StableExePath, overwrite: true);
+        ClearMarkOfTheWeb(StableExePath);
         return true;
+    }
+
+    /// <summary>
+    /// 인터넷에서 받은 파일에 붙는 표식(Zone.Identifier)을 사본에서 지운다.
+    /// 이 표식이 남아 있으면 실행할 때마다 "게시자를 알 수 없습니다" 보안 경고가 뜬다 —
+    /// 서명이 없어서가 아니라 <b>파일이 인터넷 출처로 표시돼 있어서</b>다(둘은 다른 문제).
+    /// 우리가 만든 사본은 사용자가 이미 실행을 허락한 파일에서 나온 것이므로 표식을 잇지 않는다.
+    /// </summary>
+    public static void ClearMarkOfTheWeb(string path)
+    {
+        try { File.Delete(path + ":Zone.Identifier"); }   // NTFS 대체 데이터 스트림
+        catch { /* 없거나 지원 안 하는 파일 시스템이면 그만 */ }
     }
 
     /// <summary>자동실행 켜기/끄기. 켤 때 현재 위치가 불안정하면 안정 위치로 자기를 복사한 뒤 그 경로를 등록한다.</summary>
