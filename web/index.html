@@ -55,7 +55,8 @@
         <button id="downloadBtn" disabled>키보드에서 불러오기</button>
         <button id="uploadBtn" class="primary" disabled>키보드에 업로드</button>
         <progress id="progress" value="0" max="1" style="display:none"></progress>
-        <span class="dim">불러오기=현재 설정 읽기(0xFA) · 업로드=전체 레이어 전송</span>
+        <button id="wakeBtn" title="키보드가 설정 모드에 갇혀 입력이 안 될 때 누르세요 (프로그래밍 종료 03 fd fe ff)">키가 안 먹을 때</button>
+        <span class="dim">불러오기=현재 설정 읽기(0xFA) · 업로드=내 설정 + 기기에 있던 설정 유지</span>
       </div>
       <details id="diagWrap" class="dbg" style="display:none">
         <summary>장치 진단 (REPORT_ID 확정용)</summary>

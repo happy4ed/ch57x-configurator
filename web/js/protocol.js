@@ -184,6 +184,14 @@ export async function sendRawPacket(device, bytes) {
   await sendPacket(device, pkt, outputReportLength(device, REPORT_ID));
 }
 
+// ★프로그래밍 종료 — 읽기·조회 뒤에는 반드시 보낸다.
+// 안 보내면 키보드가 설정 모드에 머물러 ★키·노브 입력이 전부 죽는다.
+// (2026-09-13 실측: 웹앱 연결·불러오기 뒤 키패드 먹통 → USB 재연결로만 복구됐다.
+//  쓰기 경로는 커밋 시퀀스에 이 패킷이 들어 있어 괜찮았고, ★읽기 경로에만 빠져 있었다.)
+export async function endProgramming(device) {
+  try { await sendRawPacket(device, Uint8Array.from([0x03, 0xfd, 0xfe, 0xff])); } catch { /* 끊긴 뒤면 무시 */ }
+}
+
 // Live-switch the keyboard's active layer (0xa1, not flash-stored). layer: 0-based.
 export async function switchLayer(device, layer) {
   await sendRawPacket(device, Uint8Array.from([0x03, 0xa1, (layer + 1) || 1]));
@@ -194,7 +202,11 @@ export async function switchLayer(device, layer) {
 export function readDeviceInfo(device, { timeout = 700 } = {}) {
   return new Promise((resolve) => {
     let done = false;
-    const finish = (val) => { if (done) return; done = true; device.removeEventListener("inputreport", handler); clearTimeout(t); resolve(val); };
+    const finish = (val) => {
+      if (done) return; done = true;
+      device.removeEventListener("inputreport", handler); clearTimeout(t);
+      endProgramming(device).finally(() => resolve(val));   // 조회 뒤에도 설정 모드에 남기지 않는다
+    };
     const handler = (e) => {
       const d = new Uint8Array(e.data.buffer);
       if (d[0] === 0xfb) finish({ keyCount: d[1], knobCount: d[2] });
@@ -261,6 +273,7 @@ export async function readProfile(device, { onProgress } = {}) {
     }
   } finally {
     device.removeEventListener("inputreport", handler);
+    await endProgramming(device);   // 설정 모드에 남겨두지 않는다
   }
   return out;
 }

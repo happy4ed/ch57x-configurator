@@ -1,6 +1,7 @@
 import { KEYCODE_ORDER, MEDIA_CODES } from "./keycodes.js";
 import {
   VENDOR_ID, PRODUCT_IDS, uploadProfile, readProfile, readDeviceInfo, textToSteps, sendRawPacket, buttonId, knobId, previewHex,
+  endProgramming,
 } from "./protocol.js";
 
 // compare two key-step lists (mods set + code)
@@ -785,6 +786,12 @@ function toast(msg) {
 $("#connectBtn").onclick = connect;
 $("#uploadBtn").onclick = upload;
 $("#downloadBtn").onclick = download;
+// 설정 모드에 갇혀 키·노브가 죽었을 때 사람이 직접 풀 수 있는 자리(USB 재연결 없이).
+$("#wakeBtn").onclick = async () => {
+  if (!device) { toast("먼저 키보드를 연결하세요"); return; }
+  await endProgramming(device);
+  toast("프로그래밍 종료 신호를 보냈습니다 — 키를 눌러 확인해 보세요");
+};
 $("#ledMode").onchange = (e) => { profile.led[curLayer].mode = Number(e.target.value); saveProfile(); renderLed(); };
 $("#ledColor").onchange = (e) => { profile.led[curLayer].color = Number(e.target.value); saveProfile(); };
 $("#cfgKeys").onchange = (e) => { setDeviceCounts(Number(e.target.value), NUM_KNOBS); selected = null; render(); };
@@ -803,5 +810,9 @@ document.querySelectorAll(".re-probe").forEach((b) => {
   b.onclick = () => { $("#reHex").value = b.dataset.hex; reSend(b.dataset.hex); };
 });
 document.addEventListener("input", (e) => { if (e.target.closest("#editor")) refreshHex(); });
+
+// 탭을 닫거나 새로고침할 때도 설정 모드에 남기지 않는다 — 남으면 키·노브 입력이 전부 죽는다
+// (2026-09-13 실측: USB 재연결로만 복구됐다).
+window.addEventListener("pagehide", () => { if (device?.opened) endProgramming(device); });
 
 render();
