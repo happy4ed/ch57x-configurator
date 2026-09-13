@@ -128,6 +128,15 @@ public static class Protocol
     // device key/knob count query: [03 FB FB FB]
     public static byte[] DeviceInfoRequest() => Pad64(new byte[] { 0x03, 0xfb, 0xfb, 0xfb });
 
+    /// <summary>
+    /// 프로그래밍 종료 — 읽기(0xFA)·조회(0xFB) 뒤에는 <b>반드시</b> 보낸다.
+    /// 안 보내면 펌웨어가 설정 모드에 머물러 <b>키·노브 입력이 전부 죽는다</b>
+    /// (2026-09-13 실측: 연결·불러오기 뒤 키패드 먹통 → USB 재연결로만 복구).
+    /// 쓰기 경로는 <see cref="BuildKeyMessages"/> 의 커밋 시퀀스에 이 패킷이 들어 있어 괜찮았고,
+    /// 읽기 경로에만 빠져 있었다.
+    /// </summary>
+    public static byte[] EndProgramming() => Pad64(new byte[] { 0x03, 0xfd, 0xfe, 0xff });
+
     /// <summary>Decode one 0xFA response (full 64-byte buffer incl. leading report-id-less data starting with 0xFA).</summary>
     public static (int KeyId, int Layer, Binding? Binding)? ParseReadResponse(ReadOnlySpan<byte> d)
     {

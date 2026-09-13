@@ -85,29 +85,39 @@ public sealed class Ch57xDevice : IDisposable
         var result = new Dictionary<int, Dictionary<int, Binding>>();
         int inLen = Math.Max(_device.GetMaxInputReportLength(), 33);
 
-        for (int layer = 1; layer <= 3; layer++)
+        try
         {
-            Send(Protocol.ReadRequest(layer));
-            var layerMap = result[layer - 1] = new();
-            var deadline = DateTime.UtcNow.AddMilliseconds(500);
-            while (DateTime.UtcNow < deadline)
+            for (int layer = 1; layer <= 3; layer++)
             {
-                var buf = new byte[inLen];
-                int n;
-                try { n = _stream.Read(buf); } catch (TimeoutException) { break; }
-                if (n <= 0) break;
-                // HidSharp returns report-id at byte 0 (=3); response payload begins with 0xFA at byte 1
-                var span = buf[0] == Protocol.ReportId ? buf.AsSpan(1, n - 1) : buf.AsSpan(0, n);
-                var parsed = Protocol.ParseReadResponse(span);
-                if (parsed is { } r && r.Binding != null) layerMap[r.KeyId] = r.Binding;
+                Send(Protocol.ReadRequest(layer));
+                var layerMap = result[layer - 1] = new();
+                var deadline = DateTime.UtcNow.AddMilliseconds(500);
+                while (DateTime.UtcNow < deadline)
+                {
+                    var buf = new byte[inLen];
+                    int n;
+                    try { n = _stream.Read(buf); } catch (TimeoutException) { break; }
+                    if (n <= 0) break;
+                    // HidSharp returns report-id at byte 0 (=3); response payload begins with 0xFA at byte 1
+                    var span = buf[0] == Protocol.ReportId ? buf.AsSpan(1, n - 1) : buf.AsSpan(0, n);
+                    var parsed = Protocol.ParseReadResponse(span);
+                    if (parsed is { } r && r.Binding != null) layerMap[r.KeyId] = r.Binding;
+                }
+                onProgress?.Invoke(layer, 3);
             }
-            onProgress?.Invoke(layer, 3);
         }
+        finally { EndProgramming(); }   // 설정 모드에 남겨두지 않는다 — 남으면 키·노브가 죽는다
         return result;
     }
 
     /// <summary>Query physical key/knob count via 0xFB. Null if device doesn't answer.</summary>
     public (int KeyCount, int KnobCount)? ReadDeviceInfo()
+    {
+        if (_stream == null) return null;
+        try { return ReadDeviceInfoCore(); } finally { EndProgramming(); }
+    }
+
+    private (int KeyCount, int KnobCount)? ReadDeviceInfoCore()
     {
         if (_stream == null) return null;
         Send(Protocol.DeviceInfoRequest());
@@ -125,5 +135,16 @@ public sealed class Ch57xDevice : IDisposable
         return null;
     }
 
-    public void Dispose() { _stream?.Dispose(); _stream = null; }
+    /// <summary>프로그래밍 종료 신호. 실패해도 조용히 넘어간다(이미 끊긴 경우).</summary>
+    public void EndProgramming()
+    {
+        if (_stream == null) return;
+        try { Send(Protocol.EndProgramming()); } catch { /* 끊긴 뒤면 무시 */ }
+    }
+
+    public void Dispose()
+    {
+        EndProgramming();          // 닫기 전에 설정 모드를 풀어 준다
+        _stream?.Dispose(); _stream = null;
+    }
 }
