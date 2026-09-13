@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Windows;
+using System.Windows.Documents;   // Hyperlink
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 
@@ -77,7 +78,7 @@ public partial class AboutWindow : Window
             ExePathText.Text,
             AutoStartText.Text,
             $"OS: {Environment.OSVersion} / .NET {Environment.Version}");
-        try { Clipboard.SetText(text); BtnCopy.Content = "복사됨"; }
+        try { System.Windows.Clipboard.SetText(text); BtnCopy.Content = "복사됨"; }
         catch (Exception ex) { Log.Error("정보 복사", ex); }
     }
 }
