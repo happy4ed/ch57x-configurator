@@ -698,15 +698,52 @@ async function download() {
   }
 }
 
+// 업로드 = 기기 설정을 바꾸는 일. ★보내지 않은 키는 펌웨어 기본값으로 되돌아간다(docs/PROTOCOL.md §2).
+// 그래서 쓰기 전에 ★기기를 먼저 읽어, 이 프로필이 건드리지 않는 키는 읽은 값 그대로 되쓴다.
+// 읽지 못하면 무엇이 지워질 수 있는지 말하고 사람에게 묻는다 — 조용히 지우지 않는다.
 async function upload() {
   if (!device) return;
   const bar = $("#progress");
-  bar.style.display = "block";
+  bar.style.display = "block"; bar.value = 0; bar.max = 1;
   try {
+    // ① 현재 기기 상태를 읽어 둔다(초기화 방지용). 실패해도 업로드 자체는 가능하다.
+    let preserve = null, readFailed = false;
+    try {
+      const map = await readProfile(device, { onProgress: (i, n) => { bar.value = i; bar.max = n + 1; } });
+      preserve = new Map();
+      for (const p of map.values()) {
+        if (!p.binding) continue;
+        const layer0 = Math.min(Math.max((p.layer || 1) - 1, 0), NUM_LAYERS - 1);
+        preserve.set(`${layer0}:${p.keyId}`, p.binding);
+      }
+      if (!preserve.size) preserve = new Map();   // 읽었는데 비어 있음 = 기기가 실제로 비었다
+    } catch { readFailed = true; }
+
+    // ② 무엇이 바뀌는지 세어 사람에게 보여준다.
+    const mine = new Set();
+    for (let l = 0; l < profile.layers.length; l++)
+      for (const k of Object.keys(profile.layers[l] || {})) mine.add(`${l}:${Number(k)}`);
+    const kept = preserve ? [...preserve.keys()].filter((k) => !mine.has(k)).length : 0;
+
+    if (readFailed) {
+      const ok = confirm(
+        "키보드의 현재 설정을 읽지 못했습니다.\n\n" +
+        "이대로 업로드하면 이 화면에서 비어 있는 키는 키보드에서도 지워질 수 있습니다.\n" +
+        "계속할까요?");
+      if (!ok) return;
+    } else if (mine.size === 0 && kept === 0) {
+      const ok = confirm("이 프로필은 비어 있고 키보드에서도 읽을 설정이 없습니다.\nLED 설정만 전송됩니다. 계속할까요?");
+      if (!ok) return;
+    }
+
+    // ③ 전송
     const n = await uploadProfile(device, profile, (i, total) => {
       bar.value = i; bar.max = total;
-    });
-    toast(`업로드 완료 (${n} 패킷, 전체 레이어 전송)`);
+    }, { preserve });
+
+    toast(kept
+      ? `업로드 완료 — 내 설정 ${mine.size}키 · 기기 설정 ${kept}키 유지 (${n} 패킷)`
+      : `업로드 완료 — ${mine.size}키 (${n} 패킷)`);
   } catch (e) {
     toast("업로드 실패: " + e.message);
   } finally {

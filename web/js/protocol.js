@@ -131,16 +131,34 @@ async function sendPacket(device, packet, dataLen) {
   await device.sendReport(REPORT_ID, data);
 }
 
-// Upload the WHOLE profile: every bound key across ALL layers, each with its
-// commit sequence. This is what makes resets impossible — nothing is left partial.
-// profile.layers[L] is an object { keyId: binding }.
-export async function uploadProfile(device, profile, onProgress) {
+// 프로필을 기기에 쓴다.
+//
+// ★docs/PROTOCOL.md §2 의 경고: "일부 키만 전송하면 전송 안 된 키가 펌웨어 기본값으로 되돌아간다."
+// 종전 구현은 ★바인딩된 키만 보냈다 — 문서가 막겠다고 한 그 초기화를 우리가 냈다
+// (2026-09-13 실사고: 빈 프로필로 업로드한 뒤 키패드가 통째로 먹통).
+//
+// 그래서 호출부가 `preserve` 로 ★기기에서 방금 읽은 바인딩을 넘긴다. 프로필에 없는 키는
+// 그 값을 그대로 되써서 "전송 안 된 키" 를 없앤다. 프로필에도 기기에도 없던 키는 원래 비어
+// 있던 자리라 보내지 않는다(무동작 패킷을 지어 보내지 않는다 — 펌웨어 동작이 미확인이다).
+//
+// preserve: Map("<layer0>:<keyId>" -> binding) · 없으면 종전 동작(프로필만 전송).
+export async function uploadProfile(device, profile, onProgress, { preserve = null } = {}) {
   const all = [];
+  const sent = new Set();
   for (let layer = 0; layer < profile.layers.length; layer++) {
     const layerKeys = profile.layers[layer] || {};
     for (const keyIdStr of Object.keys(layerKeys)) {
       const msgs = buildKeyMessages(Number(keyIdStr), layer, layerKeys[keyIdStr]);
+      if (msgs.length) sent.add(`${layer}:${Number(keyIdStr)}`);
       all.push(...msgs);
+    }
+  }
+  // 프로필이 건드리지 않은 키 = 기기에 있던 값을 되쓴다(초기화 방지).
+  if (preserve) {
+    for (const [key, binding] of preserve) {
+      if (sent.has(key)) continue;
+      const [layerStr, keyIdStr] = key.split(":");
+      all.push(...buildKeyMessages(Number(keyIdStr), Number(layerStr), binding));
     }
   }
   // LED per layer (off/white use color 0). See docs/PROTOCOL.md §6.

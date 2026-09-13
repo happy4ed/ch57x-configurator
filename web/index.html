@@ -64,8 +64,10 @@
 
       <details id="reWrap" class="dbg" style="display:none">
         <summary>🔬 RE 콘솔 — 현재 설정 읽기 실험 (input report id 3 탐색)</summary>
-        <p class="hint">키보드가 보내는 input 리포트를 실시간 표시합니다. 아래로 후보 명령을 보내고
-          응답이 오는지 관찰하세요. (보내는 바이트는 03 으로 시작 — 03 은 리포트ID로 자동 처리)</p>
+        <p class="hint">여기 뜨는 것은 <b>설정용(벤더) 인터페이스</b>가 보내는 응답뿐입니다.
+          <b>키를 눌러도 아무것도 안 뜨는 것이 정상</b>입니다 — 키 입력은 별도의 키보드 인터페이스로
+          나가고 이 앱은 그것을 열지 않습니다. 아래로 명령을 보내고 응답이 오는지 관찰하세요.
+          (보내는 바이트는 03 으로 시작 — 03 은 리포트ID로 자동 처리)</p>
         <div class="re-send">
           <input id="reHex" placeholder="예: 03 fb 00  또는  03 f1 01" value="03 fb 00">
           <button id="reSend">전송</button>
