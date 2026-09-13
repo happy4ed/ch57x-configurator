@@ -522,14 +522,47 @@ function applyEditor() {
 }
 
 // ---------- WebHID ----------
+// 이 키보드는 composite 장치라 HID 인터페이스가 여러 개로 갈려 붙는다.
+//   · 키보드(0x01/0x06) · 마우스(0x01/0x02) · 컨슈머(0x0c/0x01)  ← 설정을 못 쓴다
+//   · ★벤더 정의(0xff00~)                                        ← 설정 패킷(리포트 3)이 사는 곳
+// 브라우저 팝업에는 같은 이름이 여러 줄 뜨고, 벤더가 아닌 줄을 고르면 진단이
+// "출력 리포트를 못 찾음" 으로 나온다(기기 고장이 아니다). 게다가 크롬은 키보드·마우스
+// collection 의 리포트를 보안상 지워서 "output/input 없음" 으로 보인다.
+// → 사람이 고르게 두지 않고, 벤더 인터페이스를 코드가 고른다.
+const VENDOR_PAGE_MIN = 0xff00;
+const isOurs = (d) => d.vendorId === VENDOR_ID && PRODUCT_IDS.includes(d.productId);
+const hasVendorOutput = (d) =>
+  (d.collections || []).some((c) => c.usagePage >= VENDOR_PAGE_MIN && (c.outputReports || []).length);
+
 async function connect() {
   if (!("hid" in navigator)) { toast("이 브라우저는 WebHID 미지원 (Chrome/Edge 사용)"); return; }
   try {
-    const filters = PRODUCT_IDS.map((productId) => ({ vendorId: VENDOR_ID, productId }));
-    const devices = await navigator.hid.requestDevice({ filters });
-    if (!devices.length) return;
-    device = devices[0];
+    // ① 이미 권한을 준 장치 중에 벤더 인터페이스가 있으면 팝업 없이 그것을 쓴다.
+    let picked = (await navigator.hid.getDevices()).find((d) => isOurs(d) && hasVendorOutput(d));
+
+    // ② 없으면 ★벤더 인터페이스만 뜨는 팝업을 낸다(잘못 고를 수가 없다).
+    if (!picked) {
+      const vendorFilters = PRODUCT_IDS.map((productId) =>
+        ({ vendorId: VENDOR_ID, productId, usagePage: VENDOR_PAGE_MIN }));
+      const list = await navigator.hid.requestDevice({ filters: vendorFilters });
+      picked = list.find(hasVendorOutput) || list[0];
+    }
+
+    // ③ 그래도 없으면 넓게 다시 물어본다 — 이 기기에 벤더 인터페이스 자체가 없을 수 있다.
+    if (!picked) {
+      const wide = PRODUCT_IDS.map((productId) => ({ vendorId: VENDOR_ID, productId }));
+      const list = await navigator.hid.requestDevice({ filters: wide });
+      if (!list.length) return;
+      picked = list.find(hasVendorOutput) || list[0];
+    }
+
+    device = picked;
     if (!device.opened) await device.open();
+
+    // 벤더 인터페이스가 아니면 설정을 못 쓴다 — 무엇이 문제인지 그 자리에서 말한다.
+    if (!hasVendorOutput(device)) {
+      toast("⚠ 설정용(벤더) 인터페이스가 아닙니다 — 아래 진단을 보세요");
+    }
     device.addEventListener?.("disconnect", () => { device = null; render(); });
     device.addEventListener?.("inputreport", onInputReport);
     render();
@@ -567,12 +600,27 @@ function renderDiag() {
     }
     if (vendorDef && ((c.inputReports?.length) || (c.featureReports?.length))) vendorHasInput = true;
   }
+  const vendorSeen = device.collections.some((c) => c.usagePage >= 0xff00);
   lines.push(`\n쓰기 판정: ${verdict}`);
-  lines.push(`읽기 가능성: ${vendorHasInput
-    ? "△ vendor 인터페이스에 input/feature 리포트 있음 — 읽기 RE 시도해볼 여지 있음"
-    : "✗ vendor 인터페이스에 input/feature 없음 — 현재 설정 읽기 불가 (펌웨어 한계)"}`);
+  if (!vendorSeen) {
+    // 벤더 collection 이 아예 없다 = 잘못된 인터페이스를 잡았거나 이 기기에 그것이 없다.
+    // 표준 collection 의 "output 없음" 은 크롬이 키보드·마우스 리포트를 가려서 그렇게 보이는 것이라 정상이다.
+    lines.push(
+      "\n★설정용(벤더 0xff00) 인터페이스를 못 잡았습니다 — 기기 고장이 아닙니다.",
+      "  이 키보드는 인터페이스가 여러 개로 갈려 붙고, 설정 패킷은 벤더 인터페이스로만 나갑니다.",
+      "  위 목록이 키보드(0x1/0x6)·마우스(0x1/0x2)·컨슈머(0xc/0x1) 뿐이면 다른 줄을 잡은 것입니다.",
+      "  (표준 collection 이 '없음' 으로 보이는 것은 크롬이 가리기 때문이며 정상입니다.)",
+      "",
+      "  할 것: 브라우저 주소창 왼쪽 자물쇠 → 이 사이트의 HID 권한 해제 → 다시 [키보드 연결].",
+      "  그래도 목록이 비어 있으면 이 기기에는 벤더 인터페이스가 없는 펌웨어입니다.");
+  } else {
+    lines.push(`읽기 가능성: ${vendorHasInput
+      ? "△ vendor 인터페이스에 input/feature 리포트 있음 — 읽기 RE 시도해볼 여지 있음"
+      : "✗ vendor 인터페이스에 input/feature 없음 — 현재 설정 읽기 불가 (펌웨어 한계)"}`);
+  }
   pre.textContent = lines.join("\n");
   wrap.style.display = "block";
+  if (!vendorSeen) wrap.open = true;   // 문제가 있을 때는 펴서 보여준다
 }
 
 // ---------- RE console: listen to input reports + send probes ----------
