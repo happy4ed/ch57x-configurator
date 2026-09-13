@@ -1,101 +1,168 @@
+/* ── 팔레트 ────────────────────────────────────────────────────────────────
+   장비를 다루는 도구다. 배경은 계측기 케이스처럼 낮게 깔고, 강조는 한 색(호박색)만 쓴다.
+   호박색을 고른 이유: 이 키보드의 백라이트 색이고, 파랑 일색인 기본 테마와 구별된다.
+   위험(전체 비우기)에만 붉은색을 남기고, 연결됨은 초록 대신 호박색 계열로 묶어 색을 늘리지 않는다. */
 :root {
-  --bg: #0f1115; --panel: #181b22; --tile: #21252e; --tile-sel: #2d6cdf;
-  --border: #2a2f3a; --text: #e6e9ef; --dim: #8b93a1; --primary: #2d6cdf; --ok: #34c759;
+  --bg: #0b0d10;            /* 케이스 바깥 */
+  --panel: #14171c;         /* 카드 */
+  --panel-2: #191d23;       /* 카드 안 보조 면 */
+  --tile: #1e232b;          /* 입력·버튼 */
+  --border: #262c36;        /* 기본 경계 */
+  --border-2: #313947;      /* 도드라지는 경계 */
+  --text: #e8ebf1;
+  --dim: #8891a0;
+  --accent: #f0a92e;        /* 호박색 — 주 강조. 한 곳에만 쓴다 */
+  --accent-ink: #1a1206;    /* 호박색 위 글자 */
+  --accent-soft: #f0a92e22;
+  --primary: var(--accent); /* 옛 이름 유지 — 기존 규칙이 참조한다 */
+  --tile-sel: var(--accent);
+  --ok: #55d18b;
+  --danger: #d4544a;
   --cap: 152px;   /* keycap edge; knob's 3 action buttons total this height */
+  --r: 10px;      /* 기본 라운드 */
 }
 * { box-sizing: border-box; }
 body {
   margin: 0; background: var(--bg); color: var(--text);
   font-family: -apple-system, "Segoe UI", "Malgun Gothic", system-ui, sans-serif;
+  /* 위아래로 아주 옅은 광원 — 평평한 단색 배경보다 장비다운 깊이가 생긴다 */
+  background-image: radial-gradient(1200px 400px at 50% -120px, #171b22 0%, transparent 70%);
+  background-repeat: no-repeat;
 }
 /* whole app is a centered column whose width tracks the keyboard board (set in JS) */
-.app { margin: 0 auto; min-width: 480px; }
+.app { margin: 0 auto; min-width: 480px; padding-bottom: 8px; }
 header {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 16px 18px; border-bottom: 1px solid var(--border);
+  gap: 12px; padding: 18px 18px 16px; border-bottom: 1px solid var(--border);
 }
-.brand h1 { margin: 0; font-size: 20px; }
+.brand h1 {
+  margin: 0; font-size: 21px; letter-spacing: -.2px; font-weight: 700;
+  display: flex; align-items: center; gap: 9px;
+}
 .dim { color: var(--dim); font-size: 14px; }
+.brand .dim { font-size: 13px; letter-spacing: .2px; }
 .hdr-actions { display: flex; align-items: center; gap: 12px; }
-.status { font-size: 15px; }
-.status.ok { color: var(--ok); }
+
+/* 연결 여부가 이 앱에서 가장 중요한 상태다 — 알약으로 크게 낸다 */
+.status {
+  font-size: 13px; font-weight: 600; padding: 6px 12px; border-radius: 999px;
+  border: 1px solid var(--border-2); background: var(--panel);
+}
+.status.ok { color: var(--ok); border-color: #2f6a4c; background: #12261c; }
 .status.off { color: var(--dim); }
 
 button, .filebtn {
-  background: var(--tile); color: var(--text); border: 1px solid var(--border);
-  border-radius: 8px; padding: 8px 14px; font-size: 15px; cursor: pointer;
+  background: var(--tile); color: var(--text); border: 1px solid var(--border-2);
+  border-radius: var(--r); padding: 8px 14px; font-size: 15px; cursor: pointer;
+  transition: border-color .12s, background .12s, transform .05s;
+  white-space: nowrap; flex: none;   /* 좁은 화면에서 라벨이 세로로 쪼개지던 것 */
 }
-button:hover, .filebtn:hover { border-color: var(--primary); }
-button.primary { background: var(--primary); border-color: var(--primary); }
-button:disabled { opacity: .45; cursor: not-allowed; }
+button:hover, .filebtn:hover { border-color: #46505f; background: #232932; }
+button:active { transform: translateY(1px); }
+button.primary {
+  background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700;
+}
+button.primary:hover { background: #ffb838; border-color: #ffb838; }
+button:disabled { opacity: .4; cursor: not-allowed; }
+button:disabled:hover { background: var(--tile); border-color: var(--border-2); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-main { padding: 20px 0; }
-.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 18px; }
+main { padding: 18px 0 22px; }
+.panel {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 16px; padding: 18px;
+  box-shadow: 0 1px 0 rgba(255,255,255,.03) inset, 0 10px 30px rgba(0,0,0,.35);
+}
 
-.profile-bar { display: flex; gap: 8px; margin-bottom: 16px; }
+.profile-bar { display: flex; gap: 8px; margin-bottom: 12px; }
 .profile-bar input { flex: 1; }
 input, select {
   background: var(--tile); color: var(--text); border: 1px solid var(--border);
   border-radius: 8px; padding: 8px 10px; font-size: 15px;
 }
 
-.dev-cfg { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; font-size: 13px; }
+/* 기기 구성은 한 번 정하고 잘 안 바꾸는 값 — 보조 면에 얹어 주 흐름에서 물러나게 한다 */
+.dev-cfg {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; font-size: 13px;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--r); padding: 8px 12px;
+}
 .dev-cfg label { color: var(--text); display: inline-flex; align-items: center; gap: 4px; }
 .dev-cfg select { padding: 5px 8px; }
 /* board wraps layer-row + device + led so their right edges align with the device box */
 .board { width: fit-content; }
 .layer-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; }
 .layer-clear { margin-left: auto; display: flex; gap: 8px; }
-button.danger { background: #c0392b; border-color: #c0392b; }
-button.danger:hover { border-color: #e25; background: #d0402f; }
+/* 되돌릴 수 없는 것만 붉게. 평소엔 테두리만, 누를 때만 채운다 */
+button.danger { background: transparent; border-color: #5c2b27; color: #e0796f; }
+button.danger:hover { background: var(--danger); border-color: var(--danger); color: #fff; }
 .tabs { display: flex; gap: 8px; }
-.tab.active { background: var(--primary); border-color: var(--primary); }
+.tab { font-weight: 600; }
+.tab.active {
+  background: var(--accent); border-color: var(--accent); color: var(--accent-ink);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
 .tab.act { margin-left: auto; background: transparent; }
 .tab.act:hover:not(:disabled) { border-color: var(--ok); color: var(--ok); }
 
 .led-bar { display: flex; align-items: center; gap: 10px; margin-top: 14px; flex-wrap: wrap;
-  padding: 10px 12px; border: 1px dashed var(--border); border-radius: 10px; }
+  padding: 10px 12px; background: var(--panel-2); border: 1px solid var(--border); border-radius: var(--r); }
 .led-title { font-size: 13px; font-weight: 600; }
 .led-bar select { min-width: 120px; }
 
 /* realistic device frame: keys on left, knobs on right */
 .device {
   display: flex; gap: 18px; align-items: flex-start; width: fit-content;
-  background: linear-gradient(145deg, #1c2029, #14171d);
-  border: 1px solid #333a47; border-radius: 16px; padding: 18px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.04), 0 6px 20px rgba(0,0,0,.35);
+  background: linear-gradient(160deg, #202631 0%, #171b22 45%, #12151a 100%);
+  border: 1px solid #39424f; border-radius: 18px; padding: 18px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.07),
+    inset 0 -2px 0 rgba(0,0,0,.5),
+    0 14px 34px rgba(0,0,0,.5);
 }
 /* shared keycap look (used by keys AND knob action buttons — same theme) */
 .keycap, .dial-chip {
   display: flex; align-items: flex-start; gap: 5px; text-align: left;
-  background: linear-gradient(180deg, #2b313c, #232831);
-  border: 1px solid #3a4250; border-radius: 9px;
-  box-shadow: 0 2px 0 #161a20, inset 0 1px 0 rgba(255,255,255,.05);
-  transition: transform .05s, border-color .1s;
+  background: linear-gradient(180deg, #313845 0%, #262c36 60%, #222831 100%);
+  border: 1px solid #3f4959; border-radius: 10px;
+  box-shadow: 0 3px 0 #14171d, inset 0 1px 0 rgba(255,255,255,.08);
+  transition: transform .06s, border-color .12s, box-shadow .12s;
 }
-.keycap, .dial-chip { border-color: var(--led, #3a4250); }
-.keycap:hover, .dial-chip:hover { border-color: var(--primary); }
-.keycap:active, .dial-chip:active { transform: translateY(1px); }
-.keycap.bound, .dial-chip.bound { border-color: var(--led, #3f6); }
-.keycap.sel, .dial-chip.sel { box-shadow: 0 2px 0 #161a20, 0 0 0 2px var(--tile-sel); }
+.keycap, .dial-chip { border-color: var(--led, #3f4959); }
+.keycap:hover, .dial-chip:hover { border-color: var(--accent); box-shadow: 0 3px 0 #14171d, 0 0 0 3px var(--accent-soft); }
+.keycap:active, .dial-chip:active { transform: translateY(2px); box-shadow: 0 1px 0 #14171d; }
+/* 바인딩된 키 — 왼쪽에 색 띠를 둬서 빈 키와 한눈에 갈린다 */
+.keycap.bound, .dial-chip.bound { border-color: var(--led, #4a5666); }
+.keycap.bound { border-left: 3px solid var(--led, var(--accent)); }
+.dial-chip.bound { border-left: 3px solid var(--led, var(--accent)); }
+.keycap.sel, .dial-chip.sel { box-shadow: 0 3px 0 #14171d, 0 0 0 3px var(--accent); }
 
 .keys { display: flex; flex-direction: column; gap: 12px; }
 .key-row { display: flex; gap: 12px; }
 .keycap { flex-direction: column; width: var(--cap); height: var(--cap); padding: 10px 11px; overflow: hidden; }
-.cap-n { font-weight: 700; font-size: 14px; color: var(--dim); }
-.cap-sum { font-size: 15px; word-break: break-all; line-height: 1.3; color: var(--text); white-space: pre-line; }
+.cap-n {
+  font-weight: 700; font-size: 12px; color: var(--dim);
+  font-variant-numeric: tabular-nums; letter-spacing: .3px;
+}
+.keycap.bound .cap-n { color: var(--accent); }
+.cap-sum { font-size: 15px; word-break: break-all; line-height: 1.32; color: var(--text); white-space: pre-line; }
+/* 아직 아무것도 안 걸린 키 — "—" 만 있으면 고장처럼 보인다 */
+.keycap:not(.bound) .cap-sum, .dial-chip:not(.bound) .chip-sum { color: #5c6472; }
 
-.dials { display: flex; flex-direction: column; gap: 14px; padding-left: 16px; border-left: 1px dashed #333a47; }
+.dials { display: flex; flex-direction: column; gap: 14px; padding-left: 16px; border-left: 1px dashed #39424f; }
 .dial-wrap { display: flex; flex-direction: row; align-items: center; gap: 12px; width: 100%; }
 .dial-slot { flex: none; width: 91px; display: flex; justify-content: center; align-items: center; }
 .dial-circle {
   flex: none; width: 66px; height: 66px; border-radius: 50%;
-  background: radial-gradient(circle at 35% 30%, #3a4250, #20242c 70%);
-  border: 3px solid #4a5263; box-shadow: inset 0 3px 6px rgba(0,0,0,.5), 0 3px 5px rgba(0,0,0,.4);
+  /* 원뿔 그라디언트로 널링(요철) 느낌 — 돌리는 물건임이 보인다 */
+  background:
+    radial-gradient(circle at 34% 28%, #454e5e 0%, #2a303a 55%, #1b1f26 100%),
+    repeating-conic-gradient(from 0deg, #2f3641 0deg 6deg, #262c35 6deg 12deg);
+  background-blend-mode: normal, overlay;
+  border: 3px solid #515b6c;
+  box-shadow: inset 0 4px 8px rgba(0,0,0,.55), inset 0 -2px 4px rgba(255,255,255,.05), 0 4px 8px rgba(0,0,0,.45);
   display: flex; align-items: center; justify-content: center;
 }
 .dial-circle.big { width: 91px; height: 91px; border-width: 4px; }
-.dial-circle span { font-size: 12px; color: var(--dim); text-align: center; }
+.dial-circle span { font-size: 12px; color: #9aa3b2; text-align: center; font-weight: 600; letter-spacing: .2px; }
 .dial-acts { display: flex; flex-direction: column; gap: 6px; width: 240px; height: var(--cap); margin-left: auto; }
 .dial-chip { align-items: center; gap: 7px; padding: 6px 10px; flex: 1; min-height: 0; }
 .chip-ic { flex: none; width: 20px; text-align: center; font-size: 17px; line-height: 1; color: var(--dim); font-variant-emoji: text; }
@@ -104,12 +171,21 @@ button.danger:hover { border-color: #e25; background: #d0402f; }
 /* editor action-type as buttons (not dropdown) */
 .type-btns { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
 .type-btn { font-size: 14px; padding: 8px 12px; }
-.type-btn.active { background: var(--primary); border-color: var(--primary); }
+.type-btn.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
 
-.upload-bar { display: flex; align-items: center; gap: 12px; margin-top: 18px; flex-wrap: wrap; }
-progress { width: 160px; }
+/* 키보드에 업로드 = 이 화면의 결론. 스크롤 아래로 사라지면 안 되므로 바닥에 붙인다 */
+.upload-bar {
+  display: flex; align-items: center; gap: 12px; margin-top: 18px; flex-wrap: wrap;
+  position: sticky; bottom: 0; z-index: 5;
+  padding: 12px; margin-left: -18px; margin-right: -18px; margin-bottom: -18px;
+  border-top: 1px solid var(--border); border-radius: 0 0 16px 16px;
+  background: linear-gradient(180deg, #14171cd9, var(--panel) 40%);
+  backdrop-filter: blur(6px);
+}
+.upload-bar .dim { font-size: 12px; }
+progress { width: 160px; accent-color: var(--accent); }
 
-.editor h3 { margin: 0 0 14px; font-size: 17px; }
+.editor h3 { margin: 0 0 14px; font-size: 18px; font-weight: 700; letter-spacing: -.2px; }
 .editor label { display: block; margin: 12px 0; font-size: 15px; color: var(--dim); }
 .editor select, .editor input[type=number], .editor input[type=text], .editor textarea { width: 100%; margin-top: 5px; font-size: 15px; padding: 9px 11px; }
 .editor textarea { background: var(--tile); color: var(--text); border: 1px solid var(--border); border-radius: 8px; resize: vertical; font-family: inherit; }
@@ -119,10 +195,11 @@ progress { width: 160px; }
 
 .step { padding: 10px; margin: 8px 0; border: 1px solid var(--border); border-radius: 9px; }
 .step-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.step-n { width: 22px; height: 22px; flex: none; display: flex; align-items: center; justify-content: center; background: var(--primary); border-radius: 50%; font-size: 13px; }
+.step-n { width: 22px; height: 22px; flex: none; display: flex; align-items: center; justify-content: center;
+  background: var(--accent); color: var(--accent-ink); font-weight: 700; border-radius: 50%; font-size: 13px; }
 .modkeys { display: flex; gap: 6px; flex: 1; flex-wrap: wrap; }
 .modkey { font-size: 16px; padding: 10px 16px; }
-.modkey.active { background: var(--primary); border-color: var(--primary); }
+.modkey.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
 .step-bot { display: flex; gap: 8px; }
 .step-key { flex: 1.4; min-width: 0; }
 .step-cap { flex: 1; min-width: 0; cursor: pointer; text-align: center; color: var(--dim); }
@@ -131,7 +208,7 @@ progress { width: 160px; }
 #addStep { font-size: 14px; padding: 7px 12px; margin-top: 4px; }
 .toggle-row { display: flex; gap: 8px; margin-top: 4px; }
 .toggle { flex: 1; }
-.toggle.active { background: var(--primary); border-color: var(--primary); }
+.toggle.active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 700; }
 .ed-actions { display: flex; gap: 8px; margin-top: 14px; }
 #edCopy { margin-left: auto; }
 
@@ -161,16 +238,48 @@ progress { width: 160px; }
 .re-probe { font-size: 11px; padding: 5px 9px; font-family: monospace; }
 
 /* editor modal */
-.modal { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.55); }
+.modal { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center;
+  background: rgba(5,7,10,.72); backdrop-filter: blur(3px); }
 .modal[hidden] { display: none; }
 .modal-card { position: relative; width: 560px; max-width: 94vw; max-height: 90vh; overflow: auto; }
 .modal-x { position: absolute; top: 12px; right: 12px; padding: 4px 9px; font-size: 13px; }
 
 .toast {
-  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
-  background: #000; border: 1px solid var(--border); padding: 10px 18px; border-radius: 10px;
+  position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: #0d1014; border: 1px solid var(--border-2); padding: 11px 18px; border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.5);
   opacity: 0; transition: .25s; pointer-events: none; font-size: 13px;
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-@media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+/* 좁은 화면(휴대폰) — 세 가지를 지킨다.
+   ① 버튼 라벨은 절대 세로로 쪼개지지 않는다  ② 본문은 가로 스크롤이 없다
+   ③ 기기 보드만은 실물 배치를 지켜야 하므로 ★자기 영역 안에서만 가로 스크롤한다 */
+@media (max-width: 820px) {
+  /* JS 가 보드 폭에 맞춰 .app 에 인라인 width 를 준다(넓은 화면용).
+     좁은 화면에서는 그 값이 화면을 넘기므로 ★인라인을 이겨서 풀어야 한다. */
+  .app { min-width: 0 !important; width: auto !important; max-width: 100% !important; padding: 0 12px; }
+  header { flex-wrap: wrap; padding: 14px 2px 12px; gap: 10px; }
+  .brand h1 { font-size: 18px; }
+  .hdr-actions { width: 100%; }
+  .panel { padding: 14px; border-radius: 14px; }
+
+  .profile-bar { flex-wrap: wrap; }
+  .profile-bar input { flex: 1 1 100%; min-width: 0; }
+
+  .layer-row { flex-wrap: wrap; }
+  .layer-clear { margin-left: 0; }
+
+  /* 보드: 화면 폭을 넘으면 이 안에서만 옆으로 민다 */
+  .board { width: 100%; max-width: 100%; overflow-x: auto; padding-bottom: 6px; }
+  .device { --cap: 116px; padding: 14px; gap: 14px; }
+  .dial-acts { width: 190px; }
+  .dial-slot { width: 74px; }
+  .dial-circle { width: 56px; height: 56px; }
+  .dial-circle.big { width: 74px; height: 74px; }
+  .cap-sum, .chip-sum { font-size: 13px; }
+
+  .upload-bar { margin-left: -14px; margin-right: -14px; margin-bottom: -14px; }
+  .upload-bar .dim { flex: 1 1 100%; }
+  .modal-card { width: 100%; }
+}

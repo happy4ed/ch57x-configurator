@@ -71,8 +71,9 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path release | Out-Null
-          Compress-Archive -Path publish-portable/*.exe -DestinationPath "release/CH57x-설정기-portable-win-x64.zip" -Force
-          Compress-Archive -Path publish-slim/*.exe     -DestinationPath "release/CH57x-설정기-slim-win-x64.zip"     -Force
+          # 자산 이름은 ASCII 로 둔다 — 한글이 들어가면 러너에서 인코딩이 깨져 "CH57x-.-portable" 이 된다(실측).
+          Compress-Archive -Path publish-portable/*.exe -DestinationPath "release/CH57x-Configurator-portable-win-x64.zip" -Force
+          Compress-Archive -Path publish-slim/*.exe     -DestinationPath "release/CH57x-Configurator-slim-win-x64.zip"     -Force
           Get-ChildItem release | Format-Table Name,Length
 
       - name: Create GitHub Release
@@ -87,8 +88,8 @@ jobs:
 
           | 파일 | 언제 쓰나 |
           |---|---|
-          | ``CH57x-설정기-portable-win-x64.zip`` | 대부분 이것. .NET 설치가 필요 없다(약 60MB). |
-          | ``CH57x-설정기-slim-win-x64.zip`` | .NET 8 Desktop Runtime 이 이미 있는 PC (약 5MB). |
+          | ``CH57x-Configurator-portable-win-x64.zip`` | 대부분 이것. .NET 설치가 필요 없다(약 60MB). |
+          | ``CH57x-Configurator-slim-win-x64.zip`` | .NET 8 Desktop Runtime 이 이미 있는 PC (약 5MB). |
 
           ### 설치
           1. zip 을 받아 **압축을 푼다**(탐색기에서 zip 을 열어 안의 exe 를 바로 실행하지 말 것 —
