@@ -1,5 +1,16 @@
 # CH57x 매크로 키보드 설정기
 
+## ▶ 바로 쓰기
+
+| | |
+|---|---|
+| **웹** (설치 없음) | **<https://happy4ed.github.io/ch57x-configurator/>** — Chrome · Edge 로 열고 키보드 연결. WebHID 라 드라이버가 필요 없다. |
+| **윈도우 앱** (트레이 상주) | [Releases](https://github.com/happy4ed/ch57x-configurator/releases) 에서 zip 다운로드 → **압축을 풀고** 실행. 트레이 메뉴에서 프로필 전환·자동시작·HUD. |
+
+> 윈도우 앱은 **압축을 푼 뒤** 실행한다. zip 을 탐색기에서 열어 그 안의 exe 를 바로 실행하면
+> 실제 실행 위치가 임시 폴더라 재부팅에 사라진다. 자동시작을 켜면 앱이 이 경우를 감지해
+> `%LOCALAPPDATA%\Programs\Ch57x\` 로 자기를 복사한 뒤 그 사본을 등록한다.
+
 AliExpress 미니 매크로 키보드(**VID 1189 / PID 8840** 등 CH57x 칩 기반, 9키 + 3노브)용
 오픈 설정 프로그램. 불친절하고 불안정한 벤더 소프트(특히 *일부 버튼이 초기화되는 버그*)를 대체한다.
 
@@ -9,12 +20,13 @@ ch57x-configurator/
 ├── docs/      공용 프로토콜 스펙 (웹·윈도우 공통 진본)
 │   ├── PROTOCOL.md            패킷/키ID/LED/커밋 시퀀스 전체 스펙
 │   └── HID-DESCRIPTOR-DUMP.md WebHID sendReport 인자 확정용 덤프 절차
-├── web/       WebHID 웹앱 (드라이버 불필요, Chrome/Edge)   ← 현재 동작
-└── windows/   네이티브 윈도우 버전 (예정)
+├── web/       WebHID 웹앱 (드라이버 불필요, Chrome/Edge) — GitHub Pages 로 서빙
+└── windows/   .NET 8 WPF 트레이 상주 앱 (Ch57x.Core 프로토콜 + Ch57x.App UI)
 ```
 
-## 웹 버전 실행
-WebHID 는 `https://` 또는 `localhost` 에서만 동작한다 (file:// 불가).
+## 웹 버전 로컬 실행
+WebHID 는 `https://` 또는 `localhost` 에서만 동작한다 (file:// 불가). 위 Pages 주소로 쓰면 되고,
+고쳐 가며 볼 때만 아래처럼 띄운다.
 ```bash
 cd web
 python3 -m http.server 8000
@@ -42,9 +54,12 @@ python3 -m http.server 8000
   고정돼 있고, 키 바인딩 종류에 "레이어 전환"이 없음(벤더 앱·오픈소스 모두 동일). 펌웨어 교체 외 방법 없음.
 - **LED·일부 기기는 되읽기 불가** — LED read 명령 없음. `0xfb` 미응답 기기는 개수 수동 선택.
 
-## 다음: 윈도우 네이티브 버전 (`windows/`)
-웹으로 불가능한 OS 통합 기능 목표. 상세 구상은 `docs/WINDOWS-PLAN.md`.
-동일 `docs/PROTOCOL.md`(읽기/쓰기 전부 문서화) 재사용.
+## 윈도우 앱 (`windows/`)
+웹으로 불가능한 OS 통합. 동일 `docs/PROTOCOL.md` 를 `Ch57x.Core` 가 그대로 구현한다.
+- 트레이 상주 · 프로필 목록에서 즉시 전환 · 창 없이 동작
+- 윈도우 시작 시 자동실행(HKCU Run · 관리자 권한 불필요), 등록 상태를 트레이 메뉴에 표시하고 깨졌으면 그 자리에서 복구
+- HUD 오버레이(투명 · 클릭 통과 토글) · 프로필 백업/복원(zip) · 키 편집기
+- 상세 구상은 `docs/WINDOWS-PLAN.md`
 
 ## 출처
 - 프로토콜 기반: [kriomant/ch57x-keyboard-tool](https://github.com/kriomant/ch57x-keyboard-tool) (MIT)

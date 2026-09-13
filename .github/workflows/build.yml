@@ -1,12 +1,18 @@
 name: build-windows-app
 
 # 코드가 push 되면 윈도우에서 자동 빌드 → 단독 실행파일(.exe) 생성.
-# 사용자는 Actions 실행 결과의 Artifacts 에서 zip 을 받아 풀고 .exe 더블클릭만 하면 됨.
+#  · master push  → Actions 의 Artifacts 에 올린다(로그인 필요 · 90일 뒤 만료).
+#  · v* 태그 push → ★GitHub Release 를 만들고 zip 을 붙인다(로그인 없이 받는 상설 주소).
+#    Artifacts 만 있으면 사용자가 최신 빌드를 받을 방법이 사실상 없다(2026-09-13).
 on:
   push:
     branches: [ master ]
     paths: [ 'windows/**', '.github/workflows/build.yml' ]
+    tags: [ 'v*' ]
   workflow_dispatch: {}
+
+permissions:
+  contents: write        # 릴리스 생성에 필요
 
 jobs:
   build:
@@ -55,3 +61,47 @@ jobs:
           name: CH57x-설정기-portable-win-x64
           path: publish-portable/*.exe
           if-no-files-found: error
+
+      # ──────── 태그(v*)일 때만: 로그인 없이 받을 수 있는 Release 를 만든다.
+      # 자산은 zip 으로 묶는다. 사용자는 ★압축을 풀고 실행해야 한다 —
+      # zip 을 탐색기에서 열어 안의 exe 를 바로 실행하면 실행 위치가 임시 폴더라
+      # 자동시작 등록이 재부팅에 사라진다(앱이 감지해 안정 위치로 복사하지만, 안내를 릴리스 본문에 적는다).
+      - name: Package release zips
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path release | Out-Null
+          Compress-Archive -Path publish-portable/*.exe -DestinationPath "release/CH57x-설정기-portable-win-x64.zip" -Force
+          Compress-Archive -Path publish-slim/*.exe     -DestinationPath "release/CH57x-설정기-slim-win-x64.zip"     -Force
+          Get-ChildItem release | Format-Table Name,Length
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $notes = @"
+          ## 받는 법
+
+          | 파일 | 언제 쓰나 |
+          |---|---|
+          | ``CH57x-설정기-portable-win-x64.zip`` | 대부분 이것. .NET 설치가 필요 없다(약 60MB). |
+          | ``CH57x-설정기-slim-win-x64.zip`` | .NET 8 Desktop Runtime 이 이미 있는 PC (약 5MB). |
+
+          ### 설치
+          1. zip 을 받아 **압축을 푼다**(탐색기에서 zip 을 열어 안의 exe 를 바로 실행하지 말 것 —
+             실행 위치가 임시 폴더라 재부팅에 사라진다).
+          2. 푼 폴더의 ``CH57x 설정기.exe`` 실행 → 트레이(우측 하단)에 아이콘이 뜬다.
+          3. 트레이 우클릭 → **윈도우 시작 시 자동실행** 체크.
+             다운로드·임시 폴더에서 실행 중이면 앱이 ``%LOCALAPPDATA%\Programs\Ch57x\`` 로
+             자기를 복사한 뒤 그 사본을 등록한다(그 사실을 알림으로 표시).
+
+          자동실행 상태는 트레이 메뉴에 그대로 보이고, 등록이 깨졌으면 **눌러서 고치기** 항목이 나온다.
+
+          ### 웹 버전 (설치 없이)
+          <https://happy4ed.github.io/ch57x-configurator/>
+          "@
+          gh release create $tag (Get-ChildItem release/*.zip | ForEach-Object { $_.FullName }) `
+            --title "CH57x 설정기 $tag" --notes $notes

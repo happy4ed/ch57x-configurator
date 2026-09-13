@@ -38,12 +38,15 @@ public partial class App : Application
         // 윈도우 로그아웃/종료 시 정리하고 즉시 죽기
         SessionEnding += (_, _) => ForceExit();
 
-        // 자동실행 자가 치유: portable 새 빌드를 다른 위치로 받아 실행하면 Run 키가 옛 exe 를
-        // 가리킨 채로 남아 재부팅 후 구버전 실행/미실행이 됨 → 매 시작 시 현재 exe 로 갱신.
+        // 자동실행 자가 치유. 두 가지를 고친다.
+        //  ① 새 빌드를 다른 위치로 받아 실행하면 Run 키가 옛 exe 를 가리킨 채 남는다.
+        //  ② 등록 경로가 임시 폴더(zip 을 탐색기에서 열어 실행)면 재부팅에 그 폴더가 사라져
+        //     아무 일도 안 일어나고 사유도 안 남는다(2026-09-13 실사고) → 안정 위치 사본으로 옮겨 건다.
         try
         {
             if (AutoStart.SyncIfEnabled())
-                Log.Write($"자동실행 등록 경로를 현재 실행 파일로 갱신함:\n{AutoStart.RegisteredCommand}");
+                Log.Write($"자동실행 등록을 고쳤습니다 → {AutoStart.RegisteredExePath}");
+            if (AutoStart.IsEnabled) Log.Write(AutoStart.Describe());
         }
         catch (Exception ex) { Log.Error("자동실행 경로 동기화", ex); }
 

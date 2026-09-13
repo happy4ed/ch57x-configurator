@@ -71,7 +71,26 @@ public sealed class TrayIcon : IDisposable
         menu.Items.Add(Item("키 편집…", OpenEditor));
         menu.Items.Add(Item("프로필 백업 (.zip 내보내기)…", ExportBackupDialog));
         menu.Items.Add(Item("프로필 복원 (.zip 불러오기)…", RestoreBackupDialog));
-        menu.Items.Add(Item(AutoStart.IsEnabled ? "✓ 윈도우 시작 시 자동실행" : "윈도우 시작 시 자동실행", ToggleAutoStart));
+        var autoItem = Item(AutoStart.IsEnabled ? "✓ 윈도우 시작 시 자동실행" : "윈도우 시작 시 자동실행", ToggleAutoStart);
+        autoItem.ToolTipText = AutoStart.Describe();
+        menu.Items.Add(autoItem);
+
+        // 켜 두고도 안 뜨는 경우가 있었다 — 등록 경로가 임시 폴더라 재부팅에 사라졌다(2026-09-13).
+        // 상태를 눈에 보이게 두고, 나쁜 상태면 그 자리에서 고칠 수 있게 한다.
+        var health = AutoStart.State;
+        if (health is AutoStart.Health.Broken or AutoStart.Health.Volatile)
+        {
+            var warn = new WinForms.ToolStripMenuItem(
+                health == AutoStart.Health.Broken
+                    ? "⚠ 자동실행 등록이 깨져 있음 — 눌러서 고치기"
+                    : "⚠ 자동실행이 사라질 위치에 등록됨 — 눌러서 고치기")
+            {
+                ForeColor = System.Drawing.Color.Firebrick,
+                ToolTipText = AutoStart.Describe(),
+            };
+            warn.Click += (_, _) => RepairAutoStart();
+            menu.Items.Add(warn);
+        }
 
         menu.Items.Add(new WinForms.ToolStripSeparator());
         var hudItem = Item(_hud?.IsVisible == true ? "✓ HUD 보이기" : "HUD 보이기", ToggleHud);
@@ -125,13 +144,41 @@ public sealed class TrayIcon : IDisposable
     {
         try
         {
-            AutoStart.Set(!AutoStart.IsEnabled);
-            Log.Write(AutoStart.IsEnabled
-                ? $"자동실행: 켜짐 → {AutoStart.RegisteredCommand}"
-                : "자동실행: 꺼짐");
+            var turningOn = !AutoStart.IsEnabled;
+            var target = AutoStart.Set(turningOn);
+            if (!turningOn) { Log.Write("자동실행: 꺼짐"); RebuildMenu(); return; }
+
+            Log.Write($"자동실행: 켜짐 → {target}");
+
+            // 사라질 자리에서 실행 중이었다면 안정 위치에 사본을 두고 그것을 등록했다.
+            // 사용자가 모르면 "왜 다른 파일이 뜨지?" 가 되므로 그 사실을 말한다.
+            if (!string.Equals(target, AutoStart.CurrentExePath, StringComparison.OrdinalIgnoreCase))
+            {
+                Log.Write($"지금 실행 파일이 사라질 위치(임시·다운로드)라 안정 위치로 복사했습니다: {target}");
+                _icon.ShowBalloonTip(8000, "자동실행 등록 완료",
+                    $"다운로드·임시 폴더는 재부팅에 사라져 자동실행이 안 됩니다.\n" +
+                    $"아래 위치로 복사해 등록했습니다.\n{target}",
+                    WinForms.ToolTipIcon.Info);
+            }
             RebuildMenu();
         }
         catch (Exception ex) { Log.Error("자동실행 설정", ex); }
+    }
+
+    /// <summary>등록이 깨졌거나 사라질 위치일 때 지금 실행 파일 기준으로 다시 건다.</summary>
+    private void RepairAutoStart()
+    {
+        try
+        {
+            var before = AutoStart.Describe();
+            var target = AutoStart.Repair();
+            if (target == null) { Log.Write($"고칠 것 없음 — {before}"); return; }
+            Log.Write($"자동실행 재등록: {before}\n  → {AutoStart.Describe()}");
+            _icon.ShowBalloonTip(8000, "자동실행을 고쳤습니다",
+                $"다음 부팅부터 이 파일이 뜹니다.\n{target}", WinForms.ToolTipIcon.Info);
+            RebuildMenu();
+        }
+        catch (Exception ex) { Log.Error("자동실행 재등록", ex); }
     }
 
     private void OpenEditor()
