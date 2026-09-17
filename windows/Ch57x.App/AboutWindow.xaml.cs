@@ -17,6 +17,19 @@ public partial class AboutWindow : Window
 {
     private readonly string _profileFolder;
 
+    /// <summary>
+    /// 한 줄 설치 명령. README 의 「한 줄 설치(PowerShell)」 절, 저장소 루트 install.ps1 머리말과
+    /// <b>같은 문자열</b>이어야 한다 — 고칠 때 세 곳을 함께 고친다.
+    /// TLS1.2 를 명시하는 이유는 구형 Windows 10 의 PowerShell 5.1 이 기본값으로 GitHub 에 붙지 못해서고,
+    /// Unblock-File 은 내려받은 스크립트의 출처 표식(Mark of the Web)을 지워 실행이 막히지 않게 한다.
+    /// </summary>
+    private const string InstallCommand =
+        "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; " +
+        "$p=\"$env:TEMP\\ch57x-install.ps1\"; " +
+        "iwr -UseBasicParsing 'https://raw.githubusercontent.com/happy4ed/ch57x-configurator/master/install.ps1' -OutFile $p; " +
+        "Unblock-File $p; " +
+        "powershell -NoProfile -ExecutionPolicy Bypass -File $p";
+
     /// <param name="profileFolder">프로필 폴더 — 여는 자리가 하나여야 해서 호출부(TrayIcon)가 넘긴다.</param>
     public AboutWindow(string profileFolder)
     {
@@ -45,10 +58,12 @@ public partial class AboutWindow : Window
 
         ExePathText.Text = "실행 파일: " + (Environment.ProcessPath ?? "(알 수 없음)");
         AutoStartText.Text = AutoStart.Describe();
+        InstallCmdText.Text = InstallCommand;
 
         BtnClose.Click += (_, _) => Close();
         BtnProfiles.Click += (_, _) => OpenProfiles();
         BtnCopy.Click += (_, _) => CopyAll();
+        BtnCopyInstall.Click += (_, _) => CopyInstall();
         AddHandler(Hyperlink.RequestNavigateEvent, new RequestNavigateEventHandler(OpenLink));
     }
 
@@ -80,5 +95,15 @@ public partial class AboutWindow : Window
             $"OS: {Environment.OSVersion} / .NET {Environment.Version}");
         try { System.Windows.Clipboard.SetText(text); BtnCopy.Content = "복사됨"; }
         catch (Exception ex) { Log.Error("정보 복사", ex); }
+    }
+
+    /// <summary>
+    /// 설치 명령을 클립보드로 보낸다. 사람이 이 창에서 드래그로 긁다가 일부만 복사해
+    /// 엉뚱한 명령을 실행하는 일을 막으려고 버튼을 따로 둔다.
+    /// </summary>
+    private void CopyInstall()
+    {
+        try { System.Windows.Clipboard.SetText(InstallCommand); BtnCopyInstall.Content = "복사됨"; }
+        catch (Exception ex) { Log.Error("설치 명령 복사", ex); }
     }
 }

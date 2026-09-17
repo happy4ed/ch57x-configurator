@@ -7,6 +7,25 @@
 | **웹** (설치 없음) | **<https://happy4ed.github.io/ch57x-configurator/>** — Chrome · Edge 로 열고 키보드 연결. WebHID 라 드라이버가 필요 없다. |
 | **윈도우 앱** (트레이 상주) | [Releases](https://github.com/happy4ed/ch57x-configurator/releases) 에서 zip 다운로드 → **압축을 풀고** 실행. 트레이 메뉴에서 프로필 전환·자동시작·HUD. |
 
+## 한 줄 설치(PowerShell)
+
+윈도우 앱은 아래 한 줄을 **PowerShell 에 붙여 넣고 Enter** 만 누르면 끝난다.
+(시작 메뉴에서 `PowerShell` 검색 → 그냥 실행. 「관리자 권한으로 실행」 은 필요 없다.)
+
+```powershell
+[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; $p="$env:TEMP\ch57x-install.ps1"; iwr -UseBasicParsing 'https://raw.githubusercontent.com/happy4ed/ch57x-configurator/master/install.ps1' -OutFile $p; Unblock-File $p; powershell -NoProfile -ExecutionPolicy Bypass -File $p
+```
+
+- **관리자 권한이 필요 없다.** 사용자 폴더에만 설치하고 권한 상승을 요구하지 않는다.
+- **아래 수동 설치 안내의 보안 경고가 나오지 않는다.** 받은 파일의 출처 표식(Mark of the Web)을
+  스크립트가 직접 지우므로, 실행할 때마다 뜨던 「Windows 의 PC 보호」(SmartScreen) 창을 볼 일이 없다.
+- **`%LOCALAPPDATA%\Programs\Ch57x` 고정 설치**라 재부팅 뒤에도 자동시작이 유지된다
+  (zip 을 열어 바로 실행했을 때 임시 폴더가 지워져 자동시작이 끊기던 문제를 애초에 피한다).
+- 다시 실행하면 그대로 **최신 버전으로 업데이트**된다. 설치 폴더를 지우지 않고 실행 파일만
+  덮어쓰며, 프로필(`%AppData%\Ch57x`)은 건드리지 않는다.
+- .NET 8 데스크톱 런타임이 이미 깔린 PC 면 끝에 ` -Slim` 을 붙여 작은 파일(약 0.3MB)로 받을 수 있다.
+  특정 버전이 필요하면 ` -Tag v0.2.0` 을 붙인다.
+
 > **받은 zip 은 먼저 우클릭 → 속성 → 「차단 해제」 체크 후 압축을 푼다.** 인터넷에서 받은 파일에는
 > 출처 표식(Mark of the Web)이 붙어 실행할 때마다 보안 경고가 뜬다 — 코드 서명이 없어서가 아니라
 > 이 표식 때문이다. 자동시작을 켜면 앱이 안정 위치로 만드는 사본에서는 이 표식을 지운다.
