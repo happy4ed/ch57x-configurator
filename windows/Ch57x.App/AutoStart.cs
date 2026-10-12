@@ -19,6 +19,11 @@ public static class AutoStart
     private const string RunKey = @"Software\Microsoft\Windows\CurrentVersion\Run";
     private const string ValueName = "Ch57xConfigurator";
 
+    // 작업관리자 '시작 프로그램' 탭의 켬/끔 기록이 여기 있다. Run 값이 멀쩡해도
+    // 이 기록이 '사용 안 함'이면 Windows 는 부팅 때 실행을 건너뛴다.
+    private const string ApprovedKey =
+        @"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run";
+
     /// <summary>재부팅 뒤에도 살아 있는 설치 위치. 사용자별이라 관리자 권한이 필요 없다.</summary>
     public static string StableFolder => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -39,15 +44,52 @@ public static class AutoStart
         }
     }
 
-    /// <summary>Run 키에 등록된 원시 값(따옴표 포함). 미등록이면 null.</summary>
-    public static string? RegisteredCommand
+    /// <summary>Run 값의 원시 객체. 정상이면 string, 망가졌으면 byte[] 등 다른 형, 미등록이면 null.</summary>
+    private static object? RegisteredRaw
     {
         get
         {
             using var k = Registry.CurrentUser.OpenSubKey(RunKey);
-            return k?.GetValue(ValueName) as string;
+            return k?.GetValue(ValueName);
         }
     }
+
+    /// <summary>Run 값이 있는데 문자열이 아니다(이진값 등). Windows 가 무시해 자동실행이 안 된다.
+    /// 실측 사고(2026-10-12): Run 값에 12바이트 이진값이 들어가 "켜짐처럼 보이나 절대 안 뜸" 발생.</summary>
+    public static bool IsMalformed
+    {
+        get { var raw = RegisteredRaw; return raw != null && raw is not string; }
+    }
+
+    /// <summary>작업관리자 '시작 프로그램'에서 '사용 안 함'으로 꺼졌는가.
+    /// 꺼지면 Run 값이 정상이어도 부팅 때 안 뜬다(기록 첫 바이트의 최하위 비트=1 이면 꺼짐).</summary>
+    public static bool IsBlockedByTaskManager
+    {
+        get
+        {
+            try
+            {
+                using var k = Registry.CurrentUser.OpenSubKey(ApprovedKey);
+                if (k?.GetValue(ValueName) is byte[] b && b.Length > 0) return (b[0] & 1) != 0;
+            }
+            catch { /* 못 읽으면 막힌 것으로 보지 않는다 */ }
+            return false;
+        }
+    }
+
+    /// <summary>작업관리자 차단 기록을 지운다(지우면 Windows 는 '사용'으로 간주).</summary>
+    private static void ClearTaskManagerBlock()
+    {
+        try
+        {
+            using var k = Registry.CurrentUser.OpenSubKey(ApprovedKey, writable: true);
+            k?.DeleteValue(ValueName, throwOnMissingValue: false);
+        }
+        catch (Exception ex) { Log.Error("작업관리자 차단 기록 제거", ex); }
+    }
+
+    /// <summary>Run 키에 등록된 원시 값(따옴표 포함). 문자열이 아니거나 미등록이면 null.</summary>
+    public static string? RegisteredCommand => RegisteredRaw as string;
 
     /// <summary>등록 값에서 따옴표를 벗긴 실제 exe 경로. 미등록이면 null.</summary>
     public static string? RegisteredExePath
@@ -198,6 +240,23 @@ public static class AutoStart
     /// <returns>등록을 바꿨으면 true.</returns>
     public static bool SyncIfEnabled()
     {
+        // Run 값이 문자열이 아니면(이진값 등) Windows 가 무시해 자동실행이 안 된다.
+        // 이런 값은 자동실행을 켜려던 흔적이므로 올바른 문자열로 바로잡는다(정상화).
+        // 옛 코드는 이 경우 RegisteredExePath 가 null 이라 "꺼짐"으로 보고 그냥 지나쳐,
+        // 앱은 켜짐으로 착각하는데 영영 안 뜨는 상태가 고쳐지지 않았다(2026-10-12 실사고).
+        if (IsMalformed)
+        {
+            try
+            {
+                var fix = ResolveTargetExe();
+                using var mk = Registry.CurrentUser.CreateSubKey(RunKey, writable: true);
+                mk?.SetValue(ValueName, Quote(fix));
+                Log.Write($"자동실행 등록이 잘못된 형식(이진값)이라 바로잡았습니다 → {fix}");
+            }
+            catch (Exception ex) { Log.Error("잘못된 자동실행 값 정정", ex); }
+            return true;
+        }
+
         var registered = RegisteredExePath;
         if (string.IsNullOrEmpty(registered)) return false;   // 꺼짐 — 손대지 않는다
 
@@ -240,15 +299,19 @@ public static class AutoStart
         Ok,         // 켜짐 · 등록 경로 존재 · 안정 위치
         Broken,     // 켜짐인데 등록 경로의 파일이 없음 → 다음 부팅에 안 뜬다
         Volatile,   // 켜짐이고 파일은 있으나 사라질 위치 → 언젠가 안 뜬다
+        Malformed,  // 값이 문자열이 아님(이진값 등) → Windows 가 무시해 안 뜬다
+        Blocked,    // 값은 정상이나 작업관리자에서 '사용 안 함' → 안 뜬다
     }
 
     public static Health State
     {
         get
         {
+            if (IsMalformed) return Health.Malformed;
             var p = RegisteredExePath;
             if (string.IsNullOrEmpty(p)) return Health.Off;
             if (!File.Exists(p)) return Health.Broken;
+            if (IsBlockedByTaskManager) return Health.Blocked;
             return IsVolatileLocation(p) ? Health.Volatile : Health.Ok;
         }
     }
@@ -256,18 +319,21 @@ public static class AutoStart
     /// <summary>트레이 메뉴 · 로그에 그대로 쓰는 한 줄 상태.</summary>
     public static string Describe() => State switch
     {
-        Health.Off      => "자동실행: 꺼짐",
-        Health.Ok       => $"자동실행: 켜짐 — {RegisteredExePath}",
-        Health.Broken   => $"자동실행: 켜짐인데 등록된 파일이 없음(다음 부팅에 안 뜸) — {RegisteredExePath}",
-        Health.Volatile => $"자동실행: 켜짐이나 사라질 위치에 등록됨(임시·다운로드 폴더) — {RegisteredExePath}",
-        _               => "자동실행: 상태 불명",
+        Health.Off       => "자동실행: 꺼짐",
+        Health.Ok        => $"자동실행: 켜짐 — {RegisteredExePath}",
+        Health.Broken    => $"자동실행: 켜짐인데 등록된 파일이 없음(다음 부팅에 안 뜸) — {RegisteredExePath}",
+        Health.Volatile  => $"자동실행: 켜짐이나 사라질 위치에 등록됨(임시·다운로드 폴더) — {RegisteredExePath}",
+        Health.Malformed => "자동실행: 등록 값이 잘못된 형식(이진값)이라 Windows 가 무시함 — 고치기로 정상화됨",
+        Health.Blocked   => $"자동실행: 켜짐이나 작업관리자에서 '사용 안 함'으로 꺼져 있음 — {RegisteredExePath}",
+        _                => "자동실행: 상태 불명",
     };
 
-    /// <summary>Broken · Volatile 을 지금 실행 중인 exe 기준으로 고친다.</summary>
+    /// <summary>Broken · Volatile · Malformed · Blocked 를 지금 실행 중인 exe 기준으로 고친다.</summary>
     /// <returns>고쳤으면 등록된 새 경로, 고칠 것이 없으면 null.</returns>
     public static string? Repair()
     {
         if (State is Health.Off or Health.Ok) return null;
+        ClearTaskManagerBlock();   // 작업관리자에서 꺼 둔 기록이 있으면 함께 푼다
         var target = ResolveTargetExe();
         using var k = Registry.CurrentUser.CreateSubKey(RunKey, writable: true);
         if (k == null) return null;

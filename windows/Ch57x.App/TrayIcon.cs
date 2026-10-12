@@ -78,12 +78,16 @@ public sealed class TrayIcon : IDisposable
         // 켜 두고도 안 뜨는 경우가 있었다 — 등록 경로가 임시 폴더라 재부팅에 사라졌다(2026-09-13).
         // 상태를 눈에 보이게 두고, 나쁜 상태면 그 자리에서 고칠 수 있게 한다.
         var health = AutoStart.State;
-        if (health is AutoStart.Health.Broken or AutoStart.Health.Volatile)
+        if (health is AutoStart.Health.Broken or AutoStart.Health.Volatile
+                   or AutoStart.Health.Malformed or AutoStart.Health.Blocked)
         {
-            var warn = new WinForms.ToolStripMenuItem(
-                health == AutoStart.Health.Broken
-                    ? "⚠ 자동실행 등록이 깨져 있음 — 눌러서 고치기"
-                    : "⚠ 자동실행이 사라질 위치에 등록됨 — 눌러서 고치기")
+            var warn = new WinForms.ToolStripMenuItem(health switch
+            {
+                AutoStart.Health.Broken    => "⚠ 자동실행 등록이 깨져 있음 — 눌러서 고치기",
+                AutoStart.Health.Volatile  => "⚠ 자동실행이 사라질 위치에 등록됨 — 눌러서 고치기",
+                AutoStart.Health.Malformed => "⚠ 자동실행 값이 잘못된 형식 — 눌러서 고치기",
+                _                          => "⚠ 자동실행이 작업관리자에서 꺼져 있음 — 눌러서 켜기",
+            })
             {
                 ForeColor = System.Drawing.Color.Firebrick,
                 ToolTipText = AutoStart.Describe(),
