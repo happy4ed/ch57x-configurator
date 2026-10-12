@@ -19,9 +19,9 @@
     <Company>happy4ed</Company>
     <Authors>happy4ed</Authors>
     <Copyright>© 2026 happy4ed. MIT License.</Copyright>
-    <Version>0.2.0</Version>
-    <FileVersion>0.2.0.0</FileVersion>
-    <AssemblyVersion>0.2.0.0</AssemblyVersion>
+    <Version>0.2.1</Version>
+    <FileVersion>0.2.1.0</FileVersion>
+    <AssemblyVersion>0.2.1.0</AssemblyVersion>
     <RepositoryUrl>https://github.com/happy4ed/ch57x-configurator</RepositoryUrl>
   </PropertyGroup>
 
