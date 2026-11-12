@@ -9,7 +9,7 @@
         <!-- 머리 줄: 프로필 · 연결 상태 · ⋯ (E1: 상태는 제목 표시줄이 아니라 여기) -->
         <DockPanel Height="40" LastChildFill="False">
             <TextBlock Text="프로필" Style="{StaticResource Caption}" Margin="0,0,8,0"/>
-            <Button x:Name="ProfileBtn" Style="{StaticResource ComboButton}" Width="200" AutomationProperties.Name="프로필 목록"/>
+            <Button x:Name="ProfileBtn" Style="{StaticResource ComboButton}" Width="200" Height="32" VerticalAlignment="Center" AutomationProperties.Name="프로필 목록"/>
             <Button x:Name="MoreBtn" DockPanel.Dock="Right" Style="{StaticResource IconButton}" Tag="more" Margin="8,0,0,0"
                     ToolTip="더 보기" AutomationProperties.Name="더 보기"/>
             <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">

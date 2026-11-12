@@ -22,7 +22,7 @@ public sealed class Glyph : FrameworkElement
     public double Size { get => (double)GetValue(SizeProperty); set => SetValue(SizeProperty, value); }
     public Brush Foreground { get => (Brush)GetValue(ForegroundProperty); set => SetValue(ForegroundProperty, value); }
 
-    public Glyph() { SnapsToDevicePixels = false; Focusable = false; IsHitTestVisible = false; }
+    public Glyph() { SnapsToDevicePixels = false; Focusable = false; IsHitTestVisible = false; VerticalAlignment = VerticalAlignment.Center; }
 
     public static Glyph Of(string kind, double size = 16) => new() { Kind = kind, Size = size, VerticalAlignment = VerticalAlignment.Center };
 

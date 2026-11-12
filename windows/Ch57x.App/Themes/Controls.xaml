@@ -452,7 +452,8 @@
                 <ControlTemplate TargetType="TextBox">
                     <Grid>
                         <Border x:Name="Bd" CornerRadius="4" BorderThickness="1" Background="{DynamicResource CtrlFill}" BorderBrush="{DynamicResource TextElevationBorder}" SnapsToDevicePixels="True"/>
-                        <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" Focusable="False"/>
+                        <!-- 여백(Padding)은 TextBox 가 안쪽에서 직접 쓴다 — 여기서 또 주면 두 번 들어감(0.3.0 CI 렌더 실측) -->
+                        <ScrollViewer x:Name="PART_ContentHost" Background="Transparent" VerticalAlignment="{TemplateBinding VerticalContentAlignment}" Focusable="False"/>
                         <TextBlock x:Name="Ph" Text="{TemplateBinding Tag}" Foreground="{DynamicResource T3}" Margin="12,5,10,6" IsHitTestVisible="False"
                                    VerticalAlignment="{TemplateBinding VerticalContentAlignment}" Visibility="Collapsed"/>
                         <Border x:Name="FocusLine" Height="2" VerticalAlignment="Bottom" CornerRadius="0,0,4,4" Background="{DynamicResource Accent}" Visibility="Collapsed"/>

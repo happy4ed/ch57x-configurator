@@ -173,7 +173,7 @@ public partial class HudWindow : Window
             {
                 layer.TryGetValue(n + 1, out var b);
                 var cell = Card(72 * s, 48 * s);
-                var top = new TextBlock { Text = (n + 1).ToString(), FontSize = 10, FontWeight = FontWeights.Bold };
+                var top = new TextBlock { Text = (n + 1).ToString(), FontSize = 10, FontWeight = FontWeights.Bold, LineHeight = 12, LineStackingStrategy = LineStackingStrategy.BlockLineHeight };
                 top.SetResourceReference(TextBlock.ForegroundProperty, "T2");
                 cell.Child = new StackPanel { Children = { top, Sum(b) } };
                 cell.Margin = new Thickness(0, 0, c < rows[r] - 1 ? 4 : 0, 0);
@@ -202,7 +202,7 @@ public partial class HudWindow : Window
             {
                 layer.TryGetValue(16 + 3 * k + a, out var b);
                 var cell = Card(80 * s, 48 * s);
-                var g = new Glyph { Kind = icons[a], Size = 12 };
+                var g = new Glyph { Kind = icons[a], Size = 12, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 0) };
                 g.SetResourceReference(Glyph.ForegroundProperty, "T2");
                 cell.Child = new StackPanel { Children = { g, Sum(b) } };
                 cell.Margin = new Thickness(a > 0 ? 4 : 0, 0, 0, 0);
@@ -223,7 +223,8 @@ public partial class HudWindow : Window
 
     private static TextBlock Sum(Binding? b)
     {
-        var t = new TextBlock { Text = Summarize.Of(b), FontSize = 11, TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.CharacterEllipsis };
+        // 두 줄까지 (줄 높이 14 — 칸 48 = 위 12 + 14 × 2 + 여백 8) · 넘치면 말줄임
+        var t = new TextBlock { Text = Summarize.Of(b), FontSize = 11, LineHeight = 14, LineStackingStrategy = LineStackingStrategy.BlockLineHeight, MaxHeight = 28, TextWrapping = TextWrapping.Wrap, TextTrimming = TextTrimming.CharacterEllipsis };
         t.SetResourceReference(TextBlock.ForegroundProperty, b == null || b.Type == BindingType.None ? "T3" : "T1");
         return t;
     }

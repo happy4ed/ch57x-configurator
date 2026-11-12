@@ -162,7 +162,6 @@ public partial class KeySettingsWindow : FluentWindow
         BuildLed(p);
 
         if (!_busy) PendingText.Text = _ctrl.PendingChanges is int n && n > 0 ? $"올리지 않은 변경 {n}개" : "변경 없음";
-        UndoBtn.IsEnabled = _ctrl.History.CanUndo;
         UndoBtn.ToolTip = _ctrl.History.NextLabel is { } lab ? $"{Terms.Undo} — {lab} (Ctrl+Z)" : $"{Terms.Undo} (Ctrl+Z)";
         LoadPcBtn.ToolTip = "PC 에 저장된 이 프로필을 화면으로 다시 불러옴 — 키보드 값이 아님";
     }
