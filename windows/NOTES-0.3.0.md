@@ -10,6 +10,9 @@
 - 화면 렌더(`CH57x 설정기.exe --render-screens <폴더>`)를 GitHub Actions windows-latest 에서 돌려 PNG 22장(11 화면 × 라이트 · 다크, 125%) — 아티팩트 `render-png`(render.log 포함).
   러너: Windows NT 10.0.26100 · 글꼴 Segoe UI Variable Text · Segoe UI · Malgun Gothic 모두 있음(render.log).
   첫 CI 렌더가 잡은 결함: 스타일 열쇠 `Card` · `Divider` 가 같은 이름의 색 열쇠를 가려 모든 창이 「'Style' is not a valid value for property 'Background'」로 그려지지 않음 → 열쇠 이름 바꿈 + 시험 추가.
+  렌더로 잡아 고친 것(PNG 를 보고 · 픽셀을 재서): 아이콘이 위로 붙음(세로 가운데) · 프로필 칸 높이 40 → 32 · 입력 칸 여백이 두 번 들어감 · 높은 입력 칸(상용구)에서 옆선 절반이 진해짐(기울기 붓 → 아래 1px 선) · HUD 칸 글이 잘림(줄 높이 14).
+- 마지막 CI: https://github.com/happy4ed/ch57x-configurator/actions/runs/43198159117 (성공 · 커밋 ab3ac43) — Core tests 23 통과(Windows) · 렌더 성공 22 실패 0 ·
+  exe 아티팩트 portable 71 941 290 B · slim 784 583 B. PNG 는 autographer `artifacts/ch57x-pc-app-0.3.0-preview/png/` 에도 복사(22장).
 
 ## 판단한 점 (지시와 다르거나 해석한 곳)
 - **Mica 안 씀 — DESIGN.md 단색**: Mica 는 DWM 유리 틀(GlassFrameThickness=-1)이 있어야 비치는데, 그러면 시스템 캡션 단추(흐린 최대화 포함)가 함께 그려져 E7 · D8(최대화 없음)과 부딪힌다. 서버에서 실기로 확인할 길이 없어 「안 되면 단색」 쪽. 확신도 중간.
