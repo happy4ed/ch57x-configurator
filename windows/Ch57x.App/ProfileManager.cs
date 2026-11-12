@@ -4,90 +4,89 @@ using Ch57x.Core;
 namespace Ch57x.App;
 
 /// <summary>
-/// Watches a folder of profile JSONs and exposes "apply this profile to the keyboard" as a
-/// single atomic action. Currently-active profile is tracked by filename hash for the ✓ mark.
+/// 프로필 폴더(%AppData%\Ch57x\Profiles)의 JSON 목록 · 만들기 · 이름 바꾸기 · 복제 · 지우기 (판정 S9 · S13).
+/// 프로필 이름 = 파일 이름(확장자 뺀 것) 하나로 쓴다(S9 「프로필 이름 하나」).
 /// </summary>
 public sealed class ProfileManager
 {
-    /// <summary>%AppData%\Ch57x\Profiles — auto-created.</summary>
     public string Folder { get; }
-
-    /// <summary>Sorted list of profile json files in the folder.</summary>
     public List<FileInfo> Files { get; private set; } = new();
+    public IEnumerable<string> Names => Files.Select(f => Path.GetFileNameWithoutExtension(f.Name));
 
-    /// <summary>File path currently applied to the keyboard (best-effort).</summary>
+    /// <summary>지금 키보드에 적용된(것으로 아는) 파일 — 트레이 메뉴 체크</summary>
     public string? ActivePath { get; set; }
 
-    /// <summary>Default profile filename — auto-created if missing so the app always has one.</summary>
     public const string DefaultName = "기본";
 
     public event Action? Changed;
-    private readonly FileSystemWatcher _watcher;
-    private readonly object _gate = new(); // upload is one-at-a-time
+    private readonly FileSystemWatcher? _watcher;
 
-    public ProfileManager()
+    public ProfileManager(string? folder = null, bool watch = true)
     {
-        Folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                              "Ch57x", "Profiles");
+        Folder = folder ?? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Ch57x", "Profiles");
         Directory.CreateDirectory(Folder);
         Refresh();
-        _watcher = new FileSystemWatcher(Folder, "*.json")
+        if (watch)
         {
-            EnableRaisingEvents = true,
-            NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
-        };
-        _watcher.Created += (_, _) => Refresh();
-        _watcher.Deleted += (_, _) => Refresh();
-        _watcher.Renamed += (_, _) => Refresh();
+            _watcher = new FileSystemWatcher(Folder, "*.json")
+            {
+                EnableRaisingEvents = true,
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.LastWrite,
+            };
+            _watcher.Created += (_, _) => Refresh();
+            _watcher.Deleted += (_, _) => Refresh();
+            _watcher.Renamed += (_, _) => Refresh();
+        }
     }
+
+    public string PathOf(string name) => Path.Combine(Folder, name + ".json");
 
     public void Refresh()
     {
-        Files = new DirectoryInfo(Folder).GetFiles("*.json")
-            .OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase).ToList();
+        Files = new DirectoryInfo(Folder).GetFiles("*.json").OrderBy(f => f.Name, StringComparer.OrdinalIgnoreCase).ToList();
         Changed?.Invoke();
     }
 
-    /// <summary>Create "기본.json" if missing — guaranteed to exist after this call. Returns its path.</summary>
+    /// <summary>「기본.json」 이 없으면 만든다 — 앱은 늘 프로필이 하나는 있다.</summary>
     public string EnsureDefault()
     {
-        var path = Path.Combine(Folder, DefaultName + ".json");
+        var path = PathOf(DefaultName);
         if (!File.Exists(path))
         {
-            ProfileStore.Save(new Ch57x.Core.Profile { Name = DefaultName }, path);
-            Log.Write($"기본 프로필 생성: {DefaultName}.json");
+            ProfileStore.Save(new Profile { Name = DefaultName }, path);
+            Log.Write($"기본 프로필 만듦: {DefaultName}.json");
             Refresh();
         }
         return path;
     }
 
-    /// <summary>Load + atomically upload a profile to the device. Returns true on success.</summary>
-    public bool Apply(string path, Ch57xDevice device)
+    /// <summary>새 이름으로 저장 (이름은 ProfileNames 로 거른 뒤 · 이미 있으면 「이름 (2)」)</summary>
+    public string SaveNew(Profile p, string name)
     {
-        lock (_gate)
-        {
-            try
-            {
-                Log.Write($"적용 시작: {Path.GetFileName(path)}");
-                var p = ProfileStore.Load(path);
-                int n = device.UploadProfile(p);
-                ActivePath = path;
-                Log.Write($"✅ 적용 완료: {p.Name} ({n} 패킷)");
-                Changed?.Invoke();
-                return true;
-            }
-            catch (Exception ex) { Log.Error("프로필 적용", ex); return false; }
-        }
-    }
-
-    /// <summary>Save the controller's current in-memory profile into the managed folder.</summary>
-    public string SaveAs(Profile p, string nameWithoutExtension)
-    {
-        var safe = string.Concat(nameWithoutExtension.Split(Path.GetInvalidFileNameChars()));
-        var path = Path.Combine(Folder, safe + ".json");
+        var n = ProfileNames.Unique(name, Names);
+        p.Name = n;
+        var path = PathOf(n);
         ProfileStore.Save(p, path);
-        Log.Write($"프로필 저장: {Path.GetFileName(path)}");
         Refresh();
         return path;
+    }
+
+    public string Rename(string path, string newName)
+    {
+        var n = ProfileNames.Clean(newName) ?? throw new InvalidOperationException("쓸 수 없는 이름");
+        var target = PathOf(n);
+        if (!string.Equals(path, target, StringComparison.OrdinalIgnoreCase))
+        {
+            if (File.Exists(target)) throw new InvalidOperationException("같은 이름의 프로필이 있음");
+            File.Move(path, target);
+        }
+        Refresh();
+        return target;
+    }
+
+    public void Delete(string path)
+    {
+        if (File.Exists(path)) File.Delete(path);
+        Refresh();
     }
 }

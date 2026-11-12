@@ -1,6 +1,6 @@
 using System.Threading;
 using System.Windows;
-using System.Windows.Threading;
+using Ch57x.Core;
 
 namespace Ch57x.App;
 
@@ -8,14 +8,32 @@ public partial class App : Application
 {
     private TrayIcon? _tray;
     private static Mutex? _singleInstance;
+    private static EventWaitHandle? _showSignal;
+    private const string MutexName = "Ch57xConfigurator.SingleInstance.v1";
+    private const string ShowSignalName = "Ch57xConfigurator.ShowKeySettings.v1";
 
     protected override void OnStartup(StartupEventArgs e)
     {
-        // ── 단일 인스턴스 강제: 이미 트레이에 떠 있으면 새 실행은 조용히 종료 (좀비 누적 방지)
-        _singleInstance = new Mutex(initiallyOwned: true, name: "Ch57xConfigurator.SingleInstance.v1", out bool isNew);
+        // ── 화면 렌더 확인 모드 (--render-screens <폴더>): 장치 · 설정 파일 · 자동실행을 건드리지 않고 PNG 만 만들고 끝
+        int ri = Array.FindIndex(e.Args, a => string.Equals(a, "--render-screens", StringComparison.OrdinalIgnoreCase));
+        if (ri >= 0)
+        {
+            AppMode.Render = true;
+            base.OnStartup(e);
+            var dir = ri + 1 < e.Args.Length ? e.Args[ri + 1] : Path.Combine(Environment.CurrentDirectory, "render");
+            int code = RenderScreens.Run(dir);
+            Shutdown(code);
+            return;
+        }
+
+        bool trayOnly = AutoStartCommand.HasTrayArg(e.Args);
+
+        // ── 하나만 실행. 이미 떠 있으면 그 창을 앞으로(판정 S2) 하고 이 실행은 끝
+        _singleInstance = new Mutex(initiallyOwned: true, name: MutexName, out bool isNew);
         if (!isNew)
         {
-            // 이미 실행 중. 종료 핸들러 안 거치고 즉시 죽음 — 트레이 아이콘 등 부작용 0.
+            if (!trayOnly)
+                try { using var ev = EventWaitHandle.OpenExisting(ShowSignalName); ev.Set(); } catch { /* 앞 판(0.2.1)은 신호가 없음 */ }
             Shutdown();
             Environment.Exit(0);
             return;
@@ -23,45 +41,54 @@ public partial class App : Application
 
         base.OnStartup(e);
 
-        // global crash guards → log instead of silent death (easy debugging)
+        // 처리 안 된 오류 → 한 줄 설명 + 「정보 복사」 (판정 S14 — 전문 대화상자 대신)
         DispatcherUnhandledException += (_, ev) =>
         {
-            Log.Error("UI 예외", ev.Exception);
-            MessageBox.Show(ev.Exception.ToString(), "오류", MessageBoxButton.OK, MessageBoxImage.Error);
+            Log.Error("처리 안 된 오류", ev.Exception);
             ev.Handled = true;
+            Dialogs.Error(MainWindow, "예상하지 못한 오류", ev.Exception);
         };
-        AppDomain.CurrentDomain.UnhandledException += (_, ev) =>
-        {
-            if (ev.ExceptionObject is Exception ex) Log.Error("치명적 예외", ex);
-        };
-
-        // 윈도우 로그아웃/종료 시 정리하고 즉시 죽기
+        AppDomain.CurrentDomain.UnhandledException += (_, ev) => { if (ev.ExceptionObject is Exception ex) Log.Error("치명적 오류", ex); };
         SessionEnding += (_, _) => ForceExit();
 
-        // 자동실행 자가 치유. 두 가지를 고친다.
-        //  ① 새 빌드를 다른 위치로 받아 실행하면 Run 키가 옛 exe 를 가리킨 채 남는다.
-        //  ② 등록 경로가 임시 폴더(zip 을 탐색기에서 열어 실행)면 재부팅에 그 폴더가 사라져
-        //     아무 일도 안 일어나고 사유도 안 남는다(2026-09-13 실사고) → 안정 위치 사본으로 옮겨 건다.
+        var settings = AppSettings.Load();
+        ThemeManager.Init(settings.Theme);
+        AppIcons.Register(Resources);
+
+        // 자동실행 자가 치유 (0.2.1 그대로 + 0.3.0 형식 「"exe" --tray」)
         try
         {
-            if (AutoStart.SyncIfEnabled())
-                Log.Write($"자동실행 등록을 고쳤습니다 → {AutoStart.RegisteredExePath}");
+            if (AutoStart.SyncIfEnabled()) Log.Write($"자동실행 등록을 고침 → {AutoStart.RegisteredCommand}");
             if (AutoStart.IsEnabled) Log.Write(AutoStart.Describe());
         }
-        catch (Exception ex) { Log.Error("자동실행 경로 동기화", ex); }
+        catch (Exception ex) { Log.Error("자동실행 경로 맞추기", ex); }
 
-        Log.Write("시작됨. 트레이 아이콘에서 메뉴를 여세요.");
-        _tray = new TrayIcon();
+        Log.Write($"시작됨 · {Terms.AppName} {ErrorReport.Version()}{(trayOnly ? " · 트레이로" : "")}");
+        var ctrl = new Controller(settings, new ProfileManager());
+        _tray = new TrayIcon(ctrl);
+        if (!trayOnly) _tray.ShowKeySettings();   // 실행하면 키 설정 창 (S2)
+
+        // 두 번째 실행의 「창을 앞으로」 신호
+        _showSignal = new EventWaitHandle(false, EventResetMode.AutoReset, ShowSignalName);
+        var t = new Thread(() =>
+        {
+            while (true)
+            {
+                try { _showSignal.WaitOne(); } catch { return; }
+                Dispatcher.BeginInvoke(() => _tray?.ShowKeySettings());
+            }
+        }) { IsBackground = true, Name = "ShowSignal" };
+        t.Start();
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
+        if (AppMode.Render) { base.OnExit(e); return; }
         try { _tray?.Dispose(); } catch { }
         try { _singleInstance?.ReleaseMutex(); _singleInstance?.Dispose(); } catch { }
         base.OnExit(e);
-        // HidSharp 내부 watcher 등이 foreground thread 로 남아 프로세스를 잡아두는 경우가 있어
-        // 명시적 환경 종료로 좀비 방지.
-        Environment.Exit(0);
+        // HidSharp 내부 감시 스레드가 프로세스를 붙잡는 일이 있어 명시적으로 끝낸다.
+        Environment.Exit(e.ApplicationExitCode);
     }
 
     private void ForceExit()

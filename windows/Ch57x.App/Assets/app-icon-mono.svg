@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <title>CH57x 설정기 (단색)</title>
+  <rect x="6.5" y="21.5" width="84" height="84" rx="12" fill="none" stroke="#000" stroke-width="6"/>
+  <g fill="#000">
+    <rect x="15" y="30" width="19" height="19" rx="4.5"/><rect x="39" y="30" width="19" height="19" rx="4.5"/><rect x="63" y="30" width="19" height="19" rx="4.5"/>
+    <rect x="15" y="54" width="19" height="19" rx="4.5"/><rect x="39" y="54" width="19" height="19" rx="4.5"/><rect x="63" y="54" width="19" height="19" rx="4.5"/>
+    <rect x="15" y="78" width="19" height="19" rx="4.5"/><rect x="39" y="78" width="19" height="19" rx="4.5"/><rect x="63" y="78" width="19" height="19" rx="4.5"/>
+  </g>
+  <g fill="none" stroke="#000" stroke-width="5">
+    <circle cx="108" cy="39.5" r="9"/><circle cx="108" cy="63.5" r="9"/><circle cx="108" cy="87.5" r="9"/>
+  </g>
+  <g stroke="#000" stroke-width="4" stroke-linecap="round">
+    <line x1="108" y1="39.5" x2="108" y2="34"/><line x1="108" y1="63.5" x2="108" y2="58"/><line x1="108" y1="87.5" x2="108" y2="82"/>
+  </g>
+</svg>

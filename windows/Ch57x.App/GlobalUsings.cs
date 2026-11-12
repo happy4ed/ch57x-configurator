@@ -18,3 +18,17 @@ global using ComboBoxItem = System.Windows.Controls.ComboBoxItem;
 global using Label = System.Windows.Controls.Label;
 global using Point = System.Windows.Point;
 global using Size = System.Windows.Size;
+// 0.3.0 에서 더 쓰는 WPF 타입 (WinForms 와 이름이 같음)
+global using KeyEventArgs = System.Windows.Input.KeyEventArgs;
+global using Cursors = System.Windows.Input.Cursors;
+global using Clipboard = System.Windows.Clipboard;
+global using RadioButton = System.Windows.Controls.RadioButton;
+global using CheckBox = System.Windows.Controls.CheckBox;
+global using ContextMenu = System.Windows.Controls.ContextMenu;
+global using MenuItem = System.Windows.Controls.MenuItem;
+global using Separator = System.Windows.Controls.Separator;
+global using ProgressBar = System.Windows.Controls.ProgressBar;
+global using Image = System.Windows.Controls.Image;
+global using FontFamily = System.Windows.Media.FontFamily;
+global using Rect = System.Windows.Rect;
+global using Pen = System.Windows.Media.Pen;

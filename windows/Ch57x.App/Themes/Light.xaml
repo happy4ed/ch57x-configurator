@@ -1,0 +1,99 @@
+<!-- 자동 생성 아님 — 손으로 고침. 값 출처: projects/ch57x/DESIGN.md (WinUI Common_themeresources_any.xaml @2a73274). 라이트 -->
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <SolidColorBrush x:Key="Bg" Color="#F3F3F3"/>
+    <Color x:Key="BgColor">#F3F3F3</Color>
+    <SolidColorBrush x:Key="Bg2" Color="#EEEEEE"/>
+    <Color x:Key="Bg2Color">#EEEEEE</Color>
+    <SolidColorBrush x:Key="Bg3" Color="#F9F9F9"/>
+    <Color x:Key="Bg3Color">#F9F9F9</Color>
+    <SolidColorBrush x:Key="Bg4" Color="#FFFFFF"/>
+    <Color x:Key="Bg4Color">#FFFFFF</Color>
+    <SolidColorBrush x:Key="Card" Color="#B3FFFFFF"/>
+    <Color x:Key="CardColor">#B3FFFFFF</Color>
+    <SolidColorBrush x:Key="CardStroke" Color="#0F000000"/>
+    <Color x:Key="CardStrokeColor">#0F000000</Color>
+    <SolidColorBrush x:Key="CtrlFill" Color="#B3FFFFFF"/>
+    <Color x:Key="CtrlFillColor">#B3FFFFFF</Color>
+    <SolidColorBrush x:Key="CtrlFill2" Color="#80F9F9F9"/>
+    <Color x:Key="CtrlFill2Color">#80F9F9F9</Color>
+    <SolidColorBrush x:Key="CtrlFill3" Color="#4DF9F9F9"/>
+    <Color x:Key="CtrlFill3Color">#4DF9F9F9</Color>
+    <SolidColorBrush x:Key="CtrlFillDis" Color="#4DF9F9F9"/>
+    <Color x:Key="CtrlFillDisColor">#4DF9F9F9</Color>
+    <SolidColorBrush x:Key="CtrlStroke" Color="#0F000000"/>
+    <Color x:Key="CtrlStrokeColor">#0F000000</Color>
+    <SolidColorBrush x:Key="CtrlStroke2" Color="#29000000"/>
+    <Color x:Key="CtrlStroke2Color">#29000000</Color>
+    <SolidColorBrush x:Key="StrongStroke" Color="#72000000"/>
+    <Color x:Key="StrongStrokeColor">#72000000</Color>
+    <SolidColorBrush x:Key="AltFill" Color="#06000000"/>
+    <Color x:Key="AltFillColor">#06000000</Color>
+    <SolidColorBrush x:Key="AltFill2" Color="#0F000000"/>
+    <Color x:Key="AltFill2Color">#0F000000</Color>
+    <SolidColorBrush x:Key="InputFill" Color="#FFFFFF"/>
+    <Color x:Key="InputFillColor">#FFFFFF</Color>
+    <SolidColorBrush x:Key="Subtle2" Color="#09000000"/>
+    <Color x:Key="Subtle2Color">#09000000</Color>
+    <SolidColorBrush x:Key="Subtle3" Color="#06000000"/>
+    <Color x:Key="Subtle3Color">#06000000</Color>
+    <SolidColorBrush x:Key="Divider" Color="#0F000000"/>
+    <Color x:Key="DividerColor">#0F000000</Color>
+    <SolidColorBrush x:Key="SurfaceStroke" Color="#66757575"/>
+    <Color x:Key="SurfaceStrokeColor">#66757575</Color>
+    <SolidColorBrush x:Key="FlyoutStroke" Color="#0F000000"/>
+    <Color x:Key="FlyoutStrokeColor">#0F000000</Color>
+    <SolidColorBrush x:Key="T1" Color="#E4000000"/>
+    <Color x:Key="T1Color">#E4000000</Color>
+    <SolidColorBrush x:Key="T2" Color="#9E000000"/>
+    <Color x:Key="T2Color">#9E000000</Color>
+    <SolidColorBrush x:Key="T3" Color="#72000000"/>
+    <Color x:Key="T3Color">#72000000</Color>
+    <SolidColorBrush x:Key="TDis" Color="#5C000000"/>
+    <Color x:Key="TDisColor">#5C000000</Color>
+    <SolidColorBrush x:Key="OnAccent" Color="#FFFFFF"/>
+    <Color x:Key="OnAccentColor">#FFFFFF</Color>
+    <SolidColorBrush x:Key="OnAccentDis" Color="#FFFFFF"/>
+    <Color x:Key="OnAccentDisColor">#FFFFFF</Color>
+    <SolidColorBrush x:Key="AccentStroke" Color="#14FFFFFF"/>
+    <Color x:Key="AccentStrokeColor">#14FFFFFF</Color>
+    <SolidColorBrush x:Key="AccentStroke2" Color="#66000000"/>
+    <Color x:Key="AccentStroke2Color">#66000000</Color>
+    <SolidColorBrush x:Key="AccentDis" Color="#37000000"/>
+    <Color x:Key="AccentDisColor">#37000000</Color>
+    <SolidColorBrush x:Key="Success" Color="#0F7B0F"/>
+    <Color x:Key="SuccessColor">#0F7B0F</Color>
+    <SolidColorBrush x:Key="SuccessBg" Color="#DFF6DD"/>
+    <Color x:Key="SuccessBgColor">#DFF6DD</Color>
+    <SolidColorBrush x:Key="Critical" Color="#C42B1C"/>
+    <Color x:Key="CriticalColor">#C42B1C</Color>
+    <SolidColorBrush x:Key="CriticalBg" Color="#FDE7E9"/>
+    <Color x:Key="CriticalBgColor">#FDE7E9</Color>
+    <SolidColorBrush x:Key="AttentionBg" Color="#80F6F6F6"/>
+    <Color x:Key="AttentionBgColor">#80F6F6F6</Color>
+    <SolidColorBrush x:Key="HudCard" Color="#DBFFFFFF"/>
+    <Color x:Key="HudCardColor">#DBFFFFFF</Color>
+    <SolidColorBrush x:Key="Desk" Color="#E6E9EE"/>
+    <Color x:Key="DeskColor">#E6E9EE</Color>
+    <SolidColorBrush x:Key="CaptionCloseHover" Color="#C42B1C"/>
+    <Color x:Key="CaptionCloseHoverColor">#C42B1C</Color>
+    <SolidColorBrush x:Key="CaptionCloseFg" Color="#FFFFFF"/>
+    <Color x:Key="CaptionCloseFgColor">#FFFFFF</Color>
+    <SolidColorBrush x:Key="Shadow" Color="#24000000"/>
+    <Color x:Key="ShadowColor">#24000000</Color>
+    <LinearGradientBrush x:Key="CtrlElevationBorder" MappingMode="Absolute" StartPoint="0,0" EndPoint="0,3">
+        <LinearGradientBrush.RelativeTransform><ScaleTransform ScaleY="-1" CenterY="0.5"/></LinearGradientBrush.RelativeTransform>
+        <GradientStop Offset="0.33" Color="#29000000"/>
+        <GradientStop Offset="1.0" Color="#0F000000"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="AccentElevationBorder" MappingMode="Absolute" StartPoint="0,0" EndPoint="0,3">
+        <LinearGradientBrush.RelativeTransform><ScaleTransform ScaleY="-1" CenterY="0.5"/></LinearGradientBrush.RelativeTransform>
+        <GradientStop Offset="0.33" Color="#66000000"/>
+        <GradientStop Offset="1.0" Color="#14FFFFFF"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="TextElevationBorder" MappingMode="Absolute" StartPoint="0,0" EndPoint="0,2">
+        <LinearGradientBrush.RelativeTransform><ScaleTransform ScaleY="-1" CenterY="0.5"/></LinearGradientBrush.RelativeTransform>
+        <GradientStop Offset="0.5" Color="#72000000"/>
+        <GradientStop Offset="0.5" Color="#0F000000"/>
+    </LinearGradientBrush>
+</ResourceDictionary>

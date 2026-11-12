@@ -1,0 +1,32 @@
+<local:FluentWindow x:Class="Ch57x.App.LogWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Ch57x.App"
+        Title="CH57x 설정기 — 로그 보기" Width="680" SizeToContent="Height" ResizeMode="CanMinimize" WindowStartupLocation="CenterScreen">
+    <!-- 로그 보기 = 보조 창 (판정 M1 원문 "제목을 로그보기라고 해야 함") · 업로드 · 읽기 단추 없음(M2 · S8 — 키 설정 창 한 곳) -->
+    <StackPanel Margin="16,4,16,16">
+        <StackPanel Orientation="Horizontal" Height="40">
+            <Ellipse x:Name="StatusDot" Width="8" Height="8" Margin="0,0,8,0" VerticalAlignment="Center"/>
+            <TextBlock x:Name="StatusText" Style="{StaticResource Strong}" Margin="0,0,8,0"/>
+            <TextBlock x:Name="StatusCaption" Style="{StaticResource Caption}"/>
+        </StackPanel>
+        <Border x:Name="TrayHint" Margin="0,8,0,0" CornerRadius="4" BorderThickness="1" BorderBrush="{DynamicResource CardStroke}"
+                Background="{DynamicResource AttentionBg}" MinHeight="48" Padding="12,8,8,8">
+            <DockPanel>
+                <local:Glyph DockPanel.Dock="Left" Kind="info" Size="16" Margin="0,0,12,0"/>
+                <Button x:Name="TrayHintOk" DockPanel.Dock="Right" Content="확인"/>
+                <TextBlock Text="이 창을 닫아도 앱은 트레이에서 계속 동작함" VerticalAlignment="Center" TextWrapping="Wrap"/>
+            </DockPanel>
+        </Border>
+        <DockPanel Margin="0,12,0,12" LastChildFill="False">
+            <Button x:Name="BtnCopy" Tag="copy" Content="복사"/>
+            <Button x:Name="BtnClear" Tag="trash" Content="지우기" Margin="8,0,0,0"/>
+            <TextBlock DockPanel.Dock="Right" Text="최근 500줄" Style="{StaticResource Caption}"/>
+        </DockPanel>
+        <Border Style="{StaticResource Card}" Height="248" Padding="12,8,4,8">
+            <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                <ItemsControl x:Name="Lines" FontFamily="{DynamicResource MonoFont}" FontSize="13"/>
+            </ScrollViewer>
+        </Border>
+    </StackPanel>
+</local:FluentWindow>

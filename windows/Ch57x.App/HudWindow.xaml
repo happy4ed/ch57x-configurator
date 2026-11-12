@@ -1,39 +1,35 @@
 <Window x:Class="Ch57x.App.HudWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Ch57x.App"
         Title="CH57x HUD"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         Topmost="True" ShowInTaskbar="False" ResizeMode="NoResize"
-        SizeToContent="WidthAndHeight" Opacity="0.92">
-    <Border CornerRadius="10" Background="Transparent" BorderThickness="0" Padding="10">
-        <StackPanel x:Name="Root" Orientation="Vertical">
-            <!-- 헤더: [닫기] [잠금] [핸들/레이블] 좌측 정렬. 배경 완전 투명 — Transparent 는 보이지 않지만 hit-test 는 되어 빈 헤더 드래그 가능 -->
-            <DockPanel x:Name="HeaderPanel" Margin="0,0,0,6" LastChildFill="True" Background="Transparent">
-                <Button x:Name="BtnHide" Content="✕" DockPanel.Dock="Left" Width="20" Height="20"
-                        Padding="0" FontSize="11" Background="Transparent" BorderThickness="0" Foreground="#8b93a1"
-                        VerticalAlignment="Center" ToolTip="HUD 닫기"/>
-                <TextBlock x:Name="LockIcon" Text="🔒" DockPanel.Dock="Left" Margin="6,0,8,0" VerticalAlignment="Center"
-                           FontSize="11" Foreground="#8b93a1"
-                           ToolTip="HUD 잠금(클릭 통과). 해제하려면 트레이 메뉴에서."/>
-                <StackPanel Orientation="Vertical" VerticalAlignment="Center">
-                    <!-- 레이블 위 드래그 핸들: 여기를 잡고 HUD 이동 -->
-                    <Border x:Name="DragHandle" Background="#26ffffff" CornerRadius="3" Padding="10,0" Margin="0,0,0,2"
-                            HorizontalAlignment="Left" Cursor="SizeAll" ToolTip="여기를 잡고 HUD 이동">
-                        <TextBlock Text="≡" Foreground="#aeb6c4" FontSize="12" HorizontalAlignment="Center"/>
-                    </Border>
-                    <TextBlock x:Name="ProfileName" Text="—" Foreground="#e6e9ef" FontSize="13" FontWeight="Bold"/>
-                </StackPanel>
-            </DockPanel>
-            <StackPanel x:Name="ControlsRow" Orientation="Horizontal" Margin="0,0,0,6">
-                <TextBlock Text="크기" Foreground="#8b93a1" FontSize="10" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                <Slider x:Name="ScaleSlider" Minimum="0.6" Maximum="2.0" Value="1.0" Width="90"
-                        TickFrequency="0.1" IsSnapToTickEnabled="False" VerticalAlignment="Center"/>
-                <TextBlock Text="투명도" Foreground="#8b93a1" FontSize="10" VerticalAlignment="Center" Margin="10,0,4,0"/>
-                <Slider x:Name="OpacitySlider" Minimum="0.3" Maximum="1.0" Value="0.92" Width="90"
-                        VerticalAlignment="Center"/>
+        SizeToContent="WidthAndHeight" Opacity="0.92"
+        FontFamily="{DynamicResource AppFont}" FontSize="11" Foreground="{DynamicResource T1}" UseLayoutRounding="True">
+    <!-- HUD: 바탕 없음 그대로(1판 판정 H1 "일부러 그렇게 한거임") · 작은 글자 예외(H8). 테마 색은 앱 테마를 따른다. -->
+    <Border x:Name="Frame" Background="Transparent" Padding="8">
+        <StackPanel x:Name="Root">
+            <!-- 머리: 닫기 · 잠금(눌러서 켜고 끔 · 그림이 바뀜) · 옮기기 — 같은 24 크기 (H7) -->
+            <StackPanel x:Name="HeaderPanel" Orientation="Horizontal" Background="Transparent">
+                <Button x:Name="BtnHide" Style="{StaticResource HudButton}" Tag="x" ToolTip="HUD 닫기" AutomationProperties.Name="HUD 닫기"/>
+                <Button x:Name="BtnLock" Style="{StaticResource HudButton}" Tag="lock" Margin="4,0,0,0" AutomationProperties.Name="HUD 잠금"/>
+                <Button x:Name="BtnMove" Style="{StaticResource HudButton}" Tag="grip" Margin="4,0,0,0" Cursor="SizeAll" ToolTip="잡고 끌어서 HUD 옮기기" AutomationProperties.Name="HUD 옮기기"/>
+                <TextBlock x:Name="ProfileName" FontSize="13" FontWeight="Bold" Margin="8,0,0,0" VerticalAlignment="Center"/>
             </StackPanel>
-            <StackPanel x:Name="LayerTabs" Orientation="Horizontal" Margin="0,0,0,6"/>
-            <StackPanel x:Name="Device" Orientation="Horizontal"/>
+            <StackPanel x:Name="ControlsRow" Orientation="Horizontal" Margin="0,8,0,0" Background="Transparent">
+                <TextBlock Text="크기" Foreground="{DynamicResource T2}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                <Slider x:Name="ScaleSlider" Minimum="0.6" Maximum="2.0" Value="1.0" Width="96" VerticalAlignment="Center" AutomationProperties.Name="HUD 크기"/>
+                <TextBlock Text="투명도" Foreground="{DynamicResource T2}" VerticalAlignment="Center" Margin="16,0,6,0"/>
+                <Slider x:Name="OpacitySlider" Minimum="0.3" Maximum="1.0" Value="0.92" Width="96" VerticalAlignment="Center" AutomationProperties.Name="HUD 투명도"/>
+            </StackPanel>
+            <!-- 보는 층 (H6): 고른 층 = 체크 표지 + 테두리(색과 별개) · 기기 층과 따로 고름 -->
+            <StackPanel x:Name="LayerRow" Orientation="Horizontal" Margin="0,12,0,0" Background="Transparent">
+                <TextBlock Text="보는 층" Foreground="{DynamicResource T2}" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                <StackPanel x:Name="LayerTabs" Orientation="Horizontal"/>
+                <TextBlock Text="기기 층과 따로 고름" Foreground="{DynamicResource T3}" VerticalAlignment="Center" Margin="6,0,0,0"/>
+            </StackPanel>
+            <StackPanel x:Name="Device" Orientation="Horizontal" Margin="0,8,0,0"/>
         </StackPanel>
     </Border>
 </Window>

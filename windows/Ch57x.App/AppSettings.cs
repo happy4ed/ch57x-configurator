@@ -2,33 +2,41 @@ using System.Text.Json;
 
 namespace Ch57x.App;
 
-/// <summary>App-level settings persisted to %AppData%\Ch57x\settings.json — survives restarts.</summary>
+/// <summary>%AppData%\Ch57x\settings.json — 다시 켜도 남는 앱 설정.</summary>
 public sealed class AppSettings
 {
-    /// <summary>Path of the profile last applied to the keyboard. Auto-loaded on next start.</summary>
+    /// <summary>마지막으로 연 프로필 파일 — 다음 실행에 그대로 연다.</summary>
     public string? LastActiveProfile { get; set; }
 
-    // future: AppMappings (앱 감지 자동 전환), HudVisible, etc.
+    /// <summary>테마: system(기본) · light · dark (판정 S15)</summary>
+    public string Theme { get; set; } = ThemeManager.System;
+
+    /// <summary>키 설정 창을 처음 닫을 때 「트레이에서 계속 동작함」 알림을 보였는가 (판정 M5)</summary>
+    public bool CloseHintShown { get; set; }
+
+    /// <summary>로그 보기 창의 같은 안내를 「확인」으로 닫았는가</summary>
+    public bool TrayHintDismissed { get; set; }
 
     private static readonly JsonSerializerOptions Opt = new() { WriteIndented = true };
     private static string Path => System.IO.Path.Combine(
-        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "Ch57x", "settings.json");
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Ch57x", "settings.json");
 
     public static AppSettings Load()
     {
+        if (AppMode.Render) return new();
         try { if (File.Exists(Path)) return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(Path)) ?? new(); }
-        catch { /* corrupt file = start fresh */ }
+        catch { /* 깨진 파일 = 새로 시작 */ }
         return new();
     }
 
     public void Save()
     {
+        if (AppMode.Render) return;   // 렌더 모드는 설정 파일을 건드리지 않는다
         try
         {
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Path)!);
             File.WriteAllText(Path, JsonSerializer.Serialize(this, Opt));
         }
-        catch (Exception ex) { Log.Error("settings 저장", ex); }
+        catch (Exception ex) { Log.Error("설정 저장", ex); }
     }
 }

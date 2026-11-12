@@ -53,23 +53,18 @@ public sealed class Ch57xDevice : IDisposable
         _stream.Write(packet64);
     }
 
-    /// <summary>Upload the whole profile: every bound key across all layers + LED, with commit sequences.</summary>
-    public int UploadProfile(Profile p, Action<int, int>? onProgress = null)
+    /// <summary>
+    /// 프로필만 보낸다(키보드를 먼저 읽지 않음 — 프로필에 없는 키는 펌웨어 기본값이 된다).
+    /// 앱은 이것 대신 <see cref="UploadPlan"/> 으로 읽은 값을 보존해 <see cref="SendAll"/> 한다(판정 S1).
+    /// </summary>
+    public int UploadProfile(Profile p, Action<int, int>? onProgress = null) =>
+        SendAll(UploadPlan.Build(p, null).Messages, onProgress);
+
+    /// <summary>미리 만든 패킷을 차례로 보낸다(업로드 계획 · 커밋 시퀀스 포함).</summary>
+    public int SendAll(IReadOnlyList<byte[]> messages, Action<int, int>? onProgress = null)
     {
-        var all = new List<byte[]>();
-        for (int layer = 0; layer < p.Layers.Count; layer++)
-            foreach (var kv in p.Layers[layer])
-                all.AddRange(Protocol.BuildKeyMessages((byte)kv.Key, layer, kv.Value));
-
-        for (int layer = 0; layer < p.Led.Count; layer++)
-        {
-            var led = p.Led[layer];
-            int color = (led.Mode == 0 || led.Mode == 5) ? 0 : led.Color;
-            all.AddRange(Protocol.BuildLedMessages(layer, led.Mode, color));
-        }
-
-        for (int i = 0; i < all.Count; i++) { Send(all[i]); onProgress?.Invoke(i + 1, all.Count); }
-        return all.Count;
+        for (int i = 0; i < messages.Count; i++) { Send(messages[i]); onProgress?.Invoke(i + 1, messages.Count); }
+        return messages.Count;
     }
 
     /// <summary>Send a single key binding immediately (used by host-remapping live updates).</summary>

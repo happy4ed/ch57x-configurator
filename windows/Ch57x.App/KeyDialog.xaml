@@ -1,0 +1,33 @@
+<local:FluentWindow x:Class="Ch57x.App.KeyDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:Ch57x.App"
+        Title="버튼 1 · 레이어 1" Width="520" SizeToContent="Height" ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+    <!-- 키 설정 대화상자 (판정 D1~D8 · S11 · S12). 창 제목 = 대상(D7) · 닫기만(D8) · 고정 크기 -->
+    <DockPanel>
+        <Border DockPanel.Dock="Bottom" Padding="24" BorderThickness="0,1,0,0" Background="{DynamicResource Bg}" BorderBrush="{DynamicResource CardStroke}">
+            <DockPanel>
+                <Button x:Name="BtnCancel" DockPanel.Dock="Right" Content="취소" Width="120" Margin="8,0,0,0" IsCancel="True"/>
+                <Button x:Name="BtnApply" DockPanel.Dock="Right" Content="적용" Width="120" Style="{StaticResource AccentButton}" IsDefault="True"/>
+                <TextBlock Text="Enter 적용 · Esc 취소" Style="{StaticResource Caption}"/>
+            </DockPanel>
+        </Border>
+        <Border Padding="24" Background="{DynamicResource Bg3}">
+            <StackPanel>
+                <TextBlock Text="이름" Style="{StaticResource FieldHeader}"/>
+                <TextBox x:Name="TxtAlias" MaxLength="20" Tag="비워 두면 키 조합이 보임" AutomationProperties.Name="이름"/>
+                <TextBlock Text="HUD 와 키 칸에 보이는 이름" Style="{StaticResource Caption}" Margin="0,8,0,0"/>
+
+                <TextBlock Text="동작" Style="{StaticResource FieldHeader}" Margin="0,16,0,0"/>
+                <WrapPanel x:Name="TypeRadios"/>
+
+                <StackPanel x:Name="Body" Margin="0,16,0,0"/>
+
+                <Border Style="{StaticResource Divider}" Margin="0,16,0,16"/>
+                <Button x:Name="BtnClear" Style="{StaticResource CriticalButton}" Tag="trash" Content="이 키 비우기" HorizontalAlignment="Left" Padding="0,0,11,0"
+                        ToolTip="이 키를 비움 — 키 설정 창의 「실행 취소」로 되돌림"/>
+            </StackPanel>
+        </Border>
+    </DockPanel>
+</local:FluentWindow>

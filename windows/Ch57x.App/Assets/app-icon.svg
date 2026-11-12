@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <title>CH57x 설정기</title>
+  <defs>
+    <linearGradient id="t" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1d222a"/><stop offset="1" stop-color="#0c0e12"/></linearGradient>
+    <linearGradient id="c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5a6678"/><stop offset="1" stop-color="#434d5e"/></linearGradient>
+    <linearGradient id="led" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2ca54a"/><stop offset="0.35" stop-color="#17a2a2"/><stop offset="0.7" stop-color="#2d6cdf"/><stop offset="1" stop-color="#8e44ad"/></linearGradient>
+    <radialGradient id="k" cx="0.34" cy="0.28" r="0.75"><stop offset="0" stop-color="#6a7384"/><stop offset="0.6" stop-color="#454f60"/><stop offset="1" stop-color="#2c323c"/></radialGradient>
+  </defs>
+  <rect x="1" y="1" width="126" height="126" rx="28" fill="url(#t)" stroke="#313947" stroke-width="2"/>
+  <rect x="6.5" y="21.5" width="84" height="84" rx="12" fill="none" stroke="url(#led)" stroke-width="9" opacity="0.28"/>
+  <rect x="6.5" y="21.5" width="84" height="84" rx="12" fill="none" stroke="url(#led)" stroke-width="4"/>
+  <g fill="url(#c)">
+    <rect x="15" y="30" width="19" height="19" rx="4.5"/><rect x="39" y="30" width="19" height="19" rx="4.5"/><rect x="63" y="30" width="19" height="19" rx="4.5"/>
+    <rect x="15" y="54" width="19" height="19" rx="4.5"/><rect x="39" y="54" width="19" height="19" rx="4.5"/><rect x="63" y="54" width="19" height="19" rx="4.5"/>
+    <rect x="15" y="78" width="19" height="19" rx="4.5"/><rect x="39" y="78" width="19" height="19" rx="4.5"/><rect x="63" y="78" width="19" height="19" rx="4.5"/>
+  </g>
+  <g fill="url(#k)" stroke="#5a6475" stroke-width="2">
+    <circle cx="108" cy="39.5" r="10.5"/><circle cx="108" cy="63.5" r="10.5"/><circle cx="108" cy="87.5" r="10.5"/>
+  </g>
+  <g fill="none" stroke="#e8ebf1" stroke-width="2.4" stroke-linecap="round">
+    <line x1="108" y1="39.5" x2="108" y2="33"/><line x1="108" y1="63.5" x2="108" y2="57"/><line x1="108" y1="87.5" x2="108" y2="81"/>
+  </g>
+</svg>

@@ -4,6 +4,8 @@ name: build-windows-app
 #  · master push  → Actions 의 Artifacts 에 올린다(로그인 필요 · 90일 뒤 만료).
 #  · v* 태그 push → ★GitHub Release 를 만들고 zip 을 붙인다(로그인 없이 받는 상설 주소).
 #    Artifacts 만 있으면 사용자가 최신 빌드를 받을 방법이 사실상 없다(2026-09-13).
+#  · 수동 실행(workflow_dispatch) — 브랜치에서도 돈다: gh workflow run build.yml --ref <브랜치>
+#  · 0.3.0: Core 단위 시험(windows/Ch57x.Tests) + 화면 렌더 확인(--render-screens) → PNG 를 Artifacts 「render-png」로.
 on:
   push:
     branches: [ master ]
@@ -23,6 +25,10 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+
+      # ──────── Core 단위 시험 (업로드 보존 · 가져오기 · 실행 취소 · 상용구 · 용어)
+      - name: Core tests
+        run: dotnet test windows/Ch57x.Tests/Ch57x.Tests.csproj -c Release --logger "console;verbosity=normal"
 
       # ──────── Slim: framework-dependent (~5MB).
       # 실행하려면 PC 에 .NET 8 Desktop Runtime 필요(없으면 윈도우가 자동 다운로드 안내).
@@ -61,6 +67,30 @@ jobs:
           name: CH57x-설정기-portable-win-x64
           path: publish-portable/*.exe
           if-no-files-found: error
+
+      # ──────── 화면 렌더 확인 (장치 · 설정 파일 · 자동실행을 건드리지 않음) — 창마다 라이트 · 다크 PNG (125%)
+      - name: Render screens
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        timeout-minutes: 10
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem publish-portable -Filter *.exe | Select-Object -First 1
+          $out = Join-Path $PWD 'render'
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          $p = Start-Process -FilePath $exe.FullName -ArgumentList '--render-screens', "`"$out`"" -PassThru
+          if (-not $p.WaitForExit(300000)) { Stop-Process -Id $p.Id -Force; Write-Host '시간 초과 — 렌더 프로세스를 멈춤'; $code = 124 } else { $code = $p.ExitCode }
+          Write-Host "종료 코드: $code"
+          if (Test-Path "$out/render.log") { Get-Content "$out/render.log" }
+          Get-ChildItem $out | Format-Table Name, Length
+          if ($code -ne 0) { exit 1 }
+
+      - name: Upload render PNG
+        if: ${{ always() && !startsWith(github.ref, 'refs/tags/v') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: render-png
+          path: render/
+          if-no-files-found: warn
 
       # ──────── 태그(v*)일 때만: 로그인 없이 받을 수 있는 Release 를 만든다.
       # 자산은 zip 으로 묶는다. 사용자는 ★압축을 풀고 실행해야 한다 —

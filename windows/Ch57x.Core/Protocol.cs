@@ -28,6 +28,9 @@ public static class Protocol
     public static byte ButtonId(int n) => (byte)(n + 1);                  // n: 0-based
     public static byte KnobId(int knob, int action) => (byte)(16 + 3 * knob + action); // action 0=ccw,1=press,2=cw
 
+    /// <summary>상용구에 넣을 수 있는 글자인가 (US 배열 영문 · 숫자 · 기호 · 빈칸 · Tab · 줄바꿈). 한글 · IME 글자는 안 됨.</summary>
+    public static bool CanType(char ch) => CharMap.ContainsKey(ch);
+
     /// <summary>상용구: expand text into key accords (max 18, firmware limit).</summary>
     public static List<Accord> TextToSteps(string text)
     {

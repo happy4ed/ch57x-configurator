@@ -1,4 +1,5 @@
 using Microsoft.Win32;
+using Ch57x.Core;
 
 namespace Ch57x.App;
 
@@ -13,6 +14,9 @@ namespace Ch57x.App;
 ///
 /// 그래서 자동실행을 켤 때 현재 exe 가 그런 위치면 <see cref="StableExePath"/> 로 <b>자기를 복사</b>하고
 /// 그 사본을 등록한다. 이후 부팅에서는 그 사본이 뜬다.
+///
+/// 0.3.0: 등록 값 = 「"exe" --tray」(<see cref="AutoStartCommand"/>) — 실행하면 키 설정 창이 뜨지만(판정 S2)
+/// Windows 시작 때는 창 없이 트레이로만 뜨게. 0.2.1 형식(인자 없음)은 시작할 때 자가 치유가 이 형식으로 고친다.
 /// </summary>
 public static class AutoStart
 {
@@ -92,18 +96,10 @@ public static class AutoStart
     public static string? RegisteredCommand => RegisteredRaw as string;
 
     /// <summary>등록 값에서 따옴표를 벗긴 실제 exe 경로. 미등록이면 null.</summary>
-    public static string? RegisteredExePath
-    {
-        get
-        {
-            var raw = RegisteredCommand;
-            if (string.IsNullOrWhiteSpace(raw)) return null;
-            raw = raw.Trim();
-            return raw.StartsWith('"') ? raw.Trim('"') : raw.Split(' ')[0];
-        }
-    }
+    public static string? RegisteredExePath => AutoStartCommand.ParseExe(RegisteredCommand);
 
-    private static string Quote(string path) => $"\"{path}\"";
+    /// <summary>등록 값 형식 — 「"exe" --tray」</summary>
+    private static string Quote(string path) => AutoStartCommand.Format(path);
 
     // ───────────────────────────────────────────────────────────────────────────
     // 위치 판정
@@ -269,6 +265,12 @@ public static class AutoStart
         // (옛 코드는 무조건 현재 경로로 덮어써서, 다운로드에서 한 번 실행하면 멀쩡한 등록이 임시 경로로 바뀌었다.)
         if (registeredExists && !registeredIsVolatile && currentIsVolatile)
         {
+            // 0.2.1 형식(트레이 인자 없음)이면 경로는 그대로 두고 형식만 고친다 — 부팅마다 창이 뜨지 않게
+            if (!AutoStartCommand.IsCurrentFormat(RegisteredCommand, registered))
+            {
+                using var fk = Registry.CurrentUser.CreateSubKey(RunKey, writable: true);
+                fk?.SetValue(ValueName, Quote(registered));
+            }
             try
             {
                 // 다만 지금 내가 더 새 빌드면 안정 사본만 갱신한다(등록 경로는 그대로).
@@ -280,8 +282,9 @@ public static class AutoStart
         }
 
         var target = ResolveTargetExe();
-        if (registeredExists && string.Equals(registered, target, StringComparison.OrdinalIgnoreCase))
-            return false;   // 이미 맞다
+        if (registeredExists && string.Equals(registered, target, StringComparison.OrdinalIgnoreCase)
+            && AutoStartCommand.IsCurrentFormat(RegisteredCommand, target))
+            return false;   // 이미 맞다 (경로 · 형식 둘 다)
 
         using var k = Registry.CurrentUser.CreateSubKey(RunKey, writable: true);
         if (k == null) return false;

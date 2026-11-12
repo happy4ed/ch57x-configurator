@@ -38,7 +38,7 @@ public static class ProfileMatcher
                 }
                 // keys that the profile has but the device doesn't return → mismatch (count as total)
                 foreach (var kv in pl)
-                    if (!keys.ContainsKey(kv.Key)) total++;
+                    if (kv.Value.Type != BindingType.None && !keys.ContainsKey(kv.Key)) total++;   // 「비움」은 기기에 없어도 맞음
             }
             results.Add(new Match(f.FullName, p, score, total));
         }
