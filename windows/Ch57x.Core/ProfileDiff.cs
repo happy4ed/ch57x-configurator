@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace Ch57x.Core;
 
-/// <summary>「올리지 않은 변경 n개」(판정 E1) — 두 프로필의 다른 키 수 + 다른 LED 레이어 수.</summary>
+/// <summary>「업로드 안 한 변경 n개」(판정 E1) — 두 프로필의 다른 키 수 + 다른 LED 레이어 수.</summary>
 public static class ProfileDiff
 {
     public static int Count(Profile? a, Profile? b)

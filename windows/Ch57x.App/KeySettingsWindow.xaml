@@ -20,7 +20,7 @@
         </DockPanel>
         <Border Height="12"/>
 
-        <!-- 알림 줄: 업로드 끝(S3) · 오류(S14) · 안내 -->
+        <!-- 알림 줄: 읽기 끝 · 안내 (업로드 끝은 아래 줄 상태 자리 — 위 내용을 밀지 않게 · 첫 사용 점검 6번) -->
         <Border x:Name="InfoBar" Visibility="Collapsed" Margin="0,0,0,12" CornerRadius="4" BorderThickness="1"
                 BorderBrush="{DynamicResource CardStroke}" MinHeight="48" Padding="12,8,8,8">
             <DockPanel>
@@ -42,7 +42,7 @@
         <Border Height="12"/>
 
         <!-- 조명 한 줄 (E9) -->
-        <StackPanel Orientation="Horizontal" Height="32">
+        <StackPanel x:Name="LedRow" Orientation="Horizontal" Height="32">
             <StackPanel Orientation="Horizontal" Width="64" VerticalAlignment="Center">
                 <local:Glyph Kind="led" Size="16" Margin="0,0,8,0"/>
                 <TextBlock Text="조명" Style="{StaticResource Strong}"/>
@@ -52,15 +52,22 @@
         </StackPanel>
 
         <Border Style="{StaticResource DividerLine}" Margin="0,16,0,16"/>
-        <ProgressBar x:Name="Progress" Margin="0,-8,0,8" Minimum="0" Maximum="100" Visibility="Collapsed"/>
+        <!-- 진행 막대 3 — 위 -8 · 아래 5 로 자리 합이 0(나타나도 아래 줄이 움직이지 않음) -->
+        <ProgressBar x:Name="Progress" Margin="0,-8,0,5" Minimum="0" Maximum="100" Visibility="Collapsed"/>
 
         <!-- 아래 줄: 왼쪽 = 되돌리기 성격(바탕 없는 단추) · 오른쪽 = 키보드 읽기 · 쓰기 (같은 줄은 같은 성격) -->
-        <DockPanel LastChildFill="False">
+        <DockPanel x:Name="BottomRow" LastChildFill="False">
             <Button x:Name="UndoBtn" Style="{StaticResource SubtleButton}" Tag="undo" Content="실행 취소"/>
             <Button x:Name="LoadPcBtn" Style="{StaticResource SubtleButton}" Tag="pc-load" Content="PC 저장값 불러오기" Margin="8,0,0,0"/>
             <Button x:Name="UploadBtn" DockPanel.Dock="Right" Style="{StaticResource AccentButton}" Tag="upload" Content="키보드에 업로드" Margin="8,0,0,0"/>
             <Button x:Name="ReadBtn" DockPanel.Dock="Right" Tag="read" Content="키보드에서 읽기" Margin="8,0,0,0"/>
-            <TextBlock x:Name="PendingText" DockPanel.Dock="Right" Style="{StaticResource Caption}" Margin="0,0,8,0"/>
+            <!-- 상태 자리: 「업로드 안 한 변경 n개」 · 업로드 끝 10초(S3). 폭은 최소 160 · 남는 폭까지만(FitStatus) — 글이 바뀌어도 창이 움직이지 않음 -->
+            <Border x:Name="StatusSlot" DockPanel.Dock="Right" MinWidth="160" Margin="0,0,8,0" Background="Transparent">
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                    <local:Glyph x:Name="DoneIcon" Kind="ok" Size="16" Margin="0,0,8,0" Foreground="{DynamicResource Success}" VerticalAlignment="Center" Visibility="Collapsed"/>
+                    <TextBlock x:Name="PendingText" Style="{StaticResource Caption}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Border>
         </DockPanel>
     </StackPanel>
 </local:FluentWindow>

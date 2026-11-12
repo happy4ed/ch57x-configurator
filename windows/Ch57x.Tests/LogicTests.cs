@@ -12,7 +12,7 @@ public class LogicTests
         var h = new ProfileHistory();
         var p = new Profile();
         Assert.False(h.CanUndo);
-        h.Push(p, "버튼 1 바꿈");
+        h.Push(p, "키 1 바꿈");
         p.Layers[0][1] = Binding.Key("A");
         h.Push(p, "조명 바꿈");
         p.Led[0].Mode = 1;

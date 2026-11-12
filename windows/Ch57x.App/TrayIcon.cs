@@ -163,10 +163,10 @@ public sealed class TrayIcon : IShell, IDisposable
     private async void ApplyProfile(string path)
     {
         var o = await Controller.ApplyProfileFileAsync(path, () => Dialogs.Confirm(Owner, "키보드 설정을 읽지 못함",
-            "이대로 올리면 이 프로필에 없는 키는 키보드에서 지워질 수 있음.", "그래도 올리기"));
-        if (o.Ok) _icon.ShowBalloonTip(3000, "키보드에 올림", $"{Path.GetFileNameWithoutExtension(path)} · {o.At:HH:mm}", WinForms.ToolTipIcon.Info);
+            "이대로 업로드하면 이 프로필에 없는 키는 키보드에서 지워질 수 있음.", "그래도 업로드"));
+        if (o.Ok) _icon.ShowBalloonTip(3000, "업로드 끝", $"{Path.GetFileNameWithoutExtension(path)} · {o.At:HH:mm}", WinForms.ToolTipIcon.Info);
         else if (o.NotConnected) _icon.ShowBalloonTip(4000, "키보드가 연결되지 않음", "키보드를 꽂으면 자동으로 연결됨", WinForms.ToolTipIcon.Warning);
-        else if (o.Error != null) Dialogs.Error(Owner, "프로필 적용", o.Error);
+        else if (o.Error != null) Dialogs.Error(Owner, "프로필 적용", o.Error, retry: () => ApplyProfile(path), device: true);
     }
 
     private async void ReadFromDevice()
@@ -174,7 +174,7 @@ public sealed class TrayIcon : IShell, IDisposable
         var o = await Controller.ReadFromDeviceAsync(null);
         if (o.Ok) _icon.ShowBalloonTip(3000, "키보드에서 읽음", $"{o.Total}키 · 「{Controller.ProfileName}」 화면에 엶", WinForms.ToolTipIcon.Info);
         else if (o.NotConnected) _icon.ShowBalloonTip(4000, "키보드가 연결되지 않음", "키보드를 꽂으면 자동으로 연결됨", WinForms.ToolTipIcon.Warning);
-        else if (o.Error != null) Dialogs.Error(Owner, "키보드에서 읽기", o.Error);
+        else if (o.Error != null) Dialogs.Error(Owner, Terms.ReadDevice, o.Error, retry: ReadFromDevice, device: true);
     }
 
     // ───────────────────────── 메뉴
@@ -209,7 +209,7 @@ public sealed class TrayIcon : IShell, IDisposable
             var path = f.FullName;
             var it = Item(Path.GetFileNameWithoutExtension(f.Name), () => ApplyProfile(path));
             it.Checked = string.Equals(Controller.Profiles.ActivePath, path, StringComparison.OrdinalIgnoreCase);
-            it.ToolTipText = "누르면 이 프로필을 키보드에 바로 올림";
+            it.ToolTipText = "누르면 이 프로필을 키보드에 바로 업로드";
             menu.Items.Add(it);
         }
         menu.Items.Add(Item("프로필 폴더 열기", () => System.Diagnostics.Process.Start("explorer.exe", Controller.Profiles.Folder)));

@@ -15,7 +15,7 @@ public sealed record OpOutcome(bool Ok, bool Cancelled = false, bool NotConnecte
 /// <summary>
 /// 장치 + 지금 프로필. 키 설정 창 · HUD · 트레이 · 로그 보기 창이 함께 쓴다.
 /// 0.3.0: 장치 일은 뒤에서(Task.Run · 한 번에 하나) — 업로드 중 화면이 굳지 않게(판정 S4).
-/// 바꿀 때마다 실행 취소 기록(S5) · PC 파일 자동 저장 · 「올리지 않은 변경」 기준(E1).
+/// 바꿀 때마다 실행 취소 기록(S5) · PC 파일 자동 저장 · 「업로드 안 한 변경」 기준(E1).
 /// </summary>
 public sealed class Controller : IDisposable
 {
@@ -29,7 +29,7 @@ public sealed class Controller : IDisposable
     /// <summary>프로필 이름 = 파일 이름 (판정 S9)</summary>
     public string ProfileName => ProfilePath != null ? Path.GetFileNameWithoutExtension(ProfilePath) : Profile.Name;
 
-    /// <summary>마지막으로 키보드와 맞춘(올림 · 읽음) 내용 — 「올리지 않은 변경 n개」 기준. 시작할 때는 연 프로필로 본다.</summary>
+    /// <summary>마지막으로 키보드와 맞춘(업로드 · 읽음) 내용 — 「업로드 안 한 변경 n개」 기준. 시작할 때는 연 프로필로 본다.</summary>
     private Profile _baseline = new();
     public int PendingChanges => ProfileDiff.Count(_baseline, Profile);
 

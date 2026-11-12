@@ -5,6 +5,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Threading;
 using Ch57x.Core;
 
 namespace Ch57x.App;
@@ -30,16 +31,21 @@ public partial class KeySettingsWindow : FluentWindow
     private bool _busy;
     private bool _syncing;
     private Action? _infoAction;
+    private string? _doneRest;   // 업로드 끝 알림 뒤 글 — null 이면 알림 없음 (S3 · 첫 사용 점검 6번)
+    private string? _doneTip;
+    private readonly DispatcherTimer _doneTimer = new() { Interval = TimeSpan.FromSeconds(10) };
+    private const double LockedOpacity = 0.45;
 
     /// <summary>처음 닫을 때(트레이에서 계속 동작함 안내 — 판정 M5)</summary>
     public event Action? FirstClose;
     /// <summary>앱 종료 때만 진짜로 닫는다. 평소 닫기 = 숨김(트레이 상주).</summary>
     public bool AllowClose { get; set; }
 
+    /// <summary>조명 방식 이름 — 괄호 설명 없이(첫 사용 점검 8번: 색은 옆 견본으로 고르는 것이 보임)</summary>
     public static readonly (int Mode, string Label)[] LedModes =
     {
-        (0, "끄기"), (1, "백라이트 (색 선택)"), (5, "백라이트 흰색"),
-        (4, "누르면 켜짐 (색 선택)"), (2, "누르면 효과 1 (색 선택)"), (3, "누르면 효과 2 (색 선택)"),
+        (0, "끄기"), (1, "백라이트"), (5, "백라이트 흰색"),
+        (4, "누르면 켜짐"), (2, "누르면 효과 1"), (3, "누르면 효과 2"),
     };
 
     /// <summary>펌웨어 LED 7색 (DESIGN.md led-* · 0.2.1 앱 값 그대로)</summary>
@@ -86,6 +92,8 @@ public partial class KeySettingsWindow : FluentWindow
         InfoClose.Click += (_, _) => HideInfo();
         InfoAction.Click += (_, _) => _infoAction?.Invoke();
         PreviewKeyDown += OnKey;
+        _doneTimer.Tick += (_, _) => { _doneTimer.Stop(); _doneRest = null; _doneTip = null; UpdateStatus(); };
+        Closed += (_, _) => _doneTimer.Stop();
 
         _ctrl.Changed += Refresh;
         Closing += OnClosing;
@@ -119,6 +127,7 @@ public partial class KeySettingsWindow : FluentWindow
 
     private void DoUndo()
     {
+        if (_busy) return;   // 업로드 · 읽기 중에는 편집 잠금 (첫 사용 점검 5번)
         if (!_ctrl.Undo()) ShowInfo("info", "되돌릴 것 없음", "");
     }
 
@@ -161,7 +170,8 @@ public partial class KeySettingsWindow : FluentWindow
         BuildDevice(p);
         BuildLed(p);
 
-        if (!_busy) PendingText.Text = _ctrl.PendingChanges is int n && n > 0 ? $"올리지 않은 변경 {n}개" : "변경 없음";
+        UpdateStatus();
+        ApplyLock();
         UndoBtn.ToolTip = _ctrl.History.NextLabel is { } lab ? $"{Terms.Undo} — {lab} (Ctrl+Z)" : $"{Terms.Undo} (Ctrl+Z)";
         LoadPcBtn.ToolTip = "PC 에 저장된 이 프로필을 화면으로 다시 불러옴 — 키보드 값이 아님";
     }
@@ -304,8 +314,9 @@ public partial class KeySettingsWindow : FluentWindow
 
     private void EditKey(int keyId)
     {
+        if (_busy) return;
         _ctrl.Profile.Layers[_layer].TryGetValue(keyId, out var cur);
-        var dlg = new KeyDialog($"{Terms.KeyName(keyId)} · 레이어 {_layer + 1}", cur) { Owner = this };
+        var dlg = new KeyDialog(Terms.KeyTitle(keyId, _layer), cur) { Owner = this };
         if (dlg.ShowDialog() == true) _ctrl.SetBinding(_layer, keyId, dlg.Result);
     }
 
@@ -328,48 +339,112 @@ public partial class KeySettingsWindow : FluentWindow
 
     public void HideInfo() { InfoBar.Visibility = Visibility.Collapsed; _infoAction = null; }
 
-    /// <summary>업로드 끝 알림 (판정 S3): 「키보드에 올림 · 14:32 · 레이어 3개 · 조명 포함」</summary>
+    /// <summary>
+    /// 업로드 끝 알림 (판정 S3 · 첫 사용 점검 6번): 아래 줄 상태 자리에 「업로드 끝 · 14:32 · 레이어 3개 · 조명 포함」 10초.
+    /// 알림 줄(위)에 띄우면 레이어 탭 · 키 칸이 밀려 내려가서 — 상태 자리는 폭 · 높이가 그대로라 레이아웃 이동 0.
+    /// 키보드에 있던 키를 지킨 수는 도움말로(한 줄이 남는 폭을 넘지 않게).
+    /// </summary>
     public void ShowUploaded(OpOutcome o)
     {
-        var rest = $"{o.At:HH:mm} · 레이어 {o.Layers}개 · 조명 포함";
-        if (o.Kept > 0) rest += $" · 키보드에 있던 {o.Kept}키 그대로";
-        ShowInfo("ok", "키보드에 올림", rest);
+        _doneRest = $"{o.At:HH:mm} · 레이어 {o.Layers}개 · 조명 포함";
+        _doneTip = o.Kept > 0 ? $"키보드에 있던 {o.Kept}키는 그대로 둠" : null;
+        _doneTimer.Stop();
+        _doneTimer.Start();
+        UpdateStatus();
     }
 
-    private void ShowFailure(string what, OpOutcome o)
+    /// <summary>아래 줄 상태 자리 — 업로드 끝(10초 · 그 사이 바꾸면 바로 변경 수로) · 「업로드 안 한 변경 n개」 · 진행 중엔 비움</summary>
+    private void UpdateStatus()
+    {
+        DoneIcon.Visibility = Visibility.Collapsed;
+        StatusSlot.ToolTip = null;
+        if (_busy) PendingText.Text = "";   // 진행은 단추 안 % + 막대만 — 같은 % 를 두 번 보이지 않음 (첫 사용 점검 5번)
+        else if (_doneRest != null && _ctrl.PendingChanges == 0)
+        {
+            DoneIcon.Visibility = Visibility.Visible;
+            PendingText.Inlines.Clear();
+            PendingText.Inlines.Add(new Run("업로드 끝") { FontWeight = FontWeights.SemiBold });
+            PendingText.Inlines.Add(new Run(" · " + _doneRest));
+            StatusSlot.ToolTip = _doneTip;
+        }
+        else
+        {
+            _doneRest = null;
+            PendingText.Text = _ctrl.PendingChanges is int n && n > 0 ? $"업로드 안 한 변경 {n}개" : "변경 없음";
+        }
+        FitStatus();
+    }
+
+    /// <summary>상태 글이 창 폭을 바꾸지 않게 — 아래 줄에서 단추들이 쓰고 남는 폭까지만(넘치면 말줄임). 최소 160 은 늘 잡아 둠(XAML).</summary>
+    private void FitStatus()
+    {
+        PendingText.MaxWidth = double.PositiveInfinity;
+        if (BottomRow.ActualWidth <= 0) return;
+        double used = 16;   // 왼쪽 단추들과 띄움
+        foreach (var b in new FrameworkElement[] { UndoBtn, LoadPcBtn, ReadBtn, UploadBtn, StatusSlot })
+            used += b.Margin.Left + b.Margin.Right + (b == StatusSlot ? 0 : b.ActualWidth);
+        double icon = DoneIcon.Visibility == Visibility.Visible ? DoneIcon.Size + DoneIcon.Margin.Right : 0;
+        PendingText.MaxWidth = Math.Max(StatusSlot.MinWidth, BottomRow.ActualWidth - used) - icon;
+    }
+
+    /// <summary>업로드 · 읽기 실패: 연결 안 됨 · 멈춤은 알림 줄, 그 밖은 오류 알림(주 단추 「다시 해 보기」 · 첫 사용 점검 1번)</summary>
+    private void ShowFailure(string context, OpOutcome o, Func<Task> retry)
     {
         if (o.NotConnected) { ShowInfo("error", "키보드가 연결되지 않음", "키보드를 꽂으면 자동으로 연결됨"); return; }
         if (o.Cancelled) { ShowInfo("info", "업로드 안 함", "키보드의 지금 설정을 읽지 못해 멈춤"); return; }
-        var ex = o.Error ?? new Exception("알 수 없는 오류");
-        ShowInfo("error", what, Dialogs.OneLine(ex), "정보 복사", () =>
-        {
-            if (Dialogs.Clip(ErrorReport.Build(what, ex))) InfoAction.Content = "복사됨";
-        });
+        Dialogs.Error(this, context, o.Error ?? new Exception("알 수 없는 오류"), retry: () => _ = retry(), device: true);
     }
 
     // ───────────────────────── 업로드 · 읽기 (뒤에서 — 화면이 굳지 않음 · S4)
 
-    /// <summary>업로드 중: 두 단추 잠김 · 단추 안 「업로드 중 42%」 · 진행 막대 (판정 S4 · 모형 keyset-c)</summary>
+    /// <summary>
+    /// 업로드 · 읽기 중: 두 단추 잠김 · 단추 안 「업로드 중 42%」 · 진행 막대 (판정 S4 · 모형 keyset-c).
+    /// 편집도 잠금 — 키 칸 · 노브 칸 · 레이어 탭 · 프로필 목록 · 실행 취소 · 조명 흐리게(첫 사용 점검 5번 · ApplyLock).
+    /// 단추 폭은 시작할 때 폭으로 고정 — % 자릿수가 바뀌어도 옆 단추가 흔들리지 않게.
+    /// </summary>
     public void SetBusy(string? label, int pct)
     {
+        bool starting = label != null && !_busy;
         _busy = label != null;
+        if (starting)
+        {
+            if (UploadBtn.ActualWidth > 0) UploadBtn.MinWidth = UploadBtn.ActualWidth;
+            if (ReadBtn.ActualWidth > 0) ReadBtn.MinWidth = ReadBtn.ActualWidth;
+        }
         ReadBtn.IsEnabled = !_busy;
         UploadBtn.IsEnabled = !_busy;
         if (_busy)
         {
             if (label == "업로드 중") UploadBtn.Content = $"업로드 중 {pct}%";
             else ReadBtn.Content = $"{label} {pct}%";
-            PendingText.Text = $"{label} · {pct}%";
             Progress.Visibility = Visibility.Visible;
             Progress.Value = pct;
+            UpdateStatus();
+            ApplyLock();
         }
         else
         {
             UploadBtn.Content = Terms.Upload;
             ReadBtn.Content = Terms.ReadDevice;
+            UploadBtn.ClearValue(MinWidthProperty);
+            ReadBtn.ClearValue(MinWidthProperty);
             Progress.Visibility = Visibility.Collapsed;
             Refresh();
         }
+    }
+
+    /// <summary>편집 잠금 (첫 사용 점검 5번) — 업로드 · 읽기 동안 화면 내용이 바뀌지 않게. 흐리게 = 불투명도 0.45 · 단추는 Fluent 비활성 색.</summary>
+    private void ApplyLock()
+    {
+        bool on = !_busy;
+        foreach (var el in new UIElement[] { LayerTabs, Device, LedRow })
+        {
+            el.IsEnabled = on;
+            el.Opacity = on ? 1 : LockedOpacity;
+        }
+        ProfileBtn.IsEnabled = on;
+        UndoBtn.IsEnabled = on;
+        LoadPcBtn.IsEnabled = on;
     }
 
     private async Task UploadAsync()
@@ -377,17 +452,17 @@ public partial class KeySettingsWindow : FluentWindow
         if (_busy) return;
         HideInfo();
         SetBusy("업로드 중", 0);
+        OpOutcome o;
         try
         {
-            var o = await _ctrl.UploadAsync(
+            o = await _ctrl.UploadAsync(
                 () => Dialogs.Confirm(this, "키보드 설정을 읽지 못함",
-                    "올리기 전에 키보드의 지금 설정을 읽어 이 화면에 없는 키를 지키는데, 읽지 못했음.\n이대로 올리면 이 화면에서 비어 있는 키는 키보드에서도 지워질 수 있음.",
-                    "그래도 올리기"),
+                    "업로드 전에 키보드의 지금 설정을 읽어 이 화면에 없는 키를 지키는데, 읽지 못했음.\n이대로 업로드하면 이 화면에서 비어 있는 키는 키보드에서도 지워질 수 있음.",
+                    "그래도 업로드"),
                 new Progress<int>(p => { if (_busy) SetBusy("업로드 중", p); }));
-            SetBusy(null, 0);
-            if (o.Ok) ShowUploaded(o); else ShowFailure("업로드 못 함", o);
         }
-        finally { if (_busy) SetBusy(null, 0); }
+        finally { SetBusy(null, 0); }
+        if (o.Ok) ShowUploaded(o); else ShowFailure(Terms.Upload, o, UploadAsync);
     }
 
     private async Task ReadAsync()
@@ -395,14 +470,11 @@ public partial class KeySettingsWindow : FluentWindow
         if (_busy) return;
         HideInfo();
         SetBusy("읽는 중", 0);
-        try
-        {
-            var o = await _ctrl.ReadFromDeviceAsync(new Progress<int>(p => { if (_busy) SetBusy("읽는 중", p); }));
-            SetBusy(null, 0);
-            if (o.Ok) ShowInfo("ok", "키보드에서 읽음", $"{o.At:HH:mm} · {o.Total}키 · PC 파일은 그대로(되돌리려면 「PC 저장값 불러오기」)");
-            else ShowFailure("읽지 못함", o);
-        }
-        finally { if (_busy) SetBusy(null, 0); }
+        OpOutcome o;
+        try { o = await _ctrl.ReadFromDeviceAsync(new Progress<int>(p => { if (_busy) SetBusy("읽는 중", p); })); }
+        finally { SetBusy(null, 0); }
+        if (o.Ok) ShowInfo("ok", "키보드에서 읽음", $"{o.At:HH:mm} · {o.Total}키 · PC 파일은 그대로(되돌리려면 「PC 저장값 불러오기」)");
+        else ShowFailure(Terms.ReadDevice, o, ReadAsync);
     }
 
     // ───────────────────────── 메뉴 (⋯ · 프로필 목록)
@@ -420,7 +492,8 @@ public partial class KeySettingsWindow : FluentWindow
 
     private static MenuItem Item(string header, string? icon, Action onClick, bool critical = false)
     {
-        var it = new MenuItem { Header = header, Tag = icon };
+        // 프로필 이름의 「_」가 바로 가기 표지로 사라지지 않게 두 번 적음
+        var it = new MenuItem { Header = header.Replace("_", "__"), Tag = icon };
         if (critical) it.SetResourceReference(StyleProperty, "CriticalMenuItem");
         it.Click += (_, _) =>
         {
@@ -430,30 +503,34 @@ public partial class KeySettingsWindow : FluentWindow
         return it;
     }
 
-    /// <summary>⋯ 메뉴 (모형 keyset-b · 판정 S13 · S15 · A1 · M1)</summary>
+    /// <summary>
+    /// ⋯ 메뉴 (모형 keyset-b · 판정 S13 · S15 · A1 · M1). 대상을 이름에(첫 사용 점검 9번): 「다른 레이어로 복사…」 · 「레이어 3 비우기…」.
+    /// 업로드 · 읽기 중에는 화면 내용을 바꾸는 줄만 잠김(5번) — 로그 · 테마 · 정보는 그대로.
+    /// </summary>
     public ContextMenu BuildMoreMenu()
     {
         var m = new ContextMenu { MinWidth = 248 };
+        MenuItem Edit(MenuItem it) { it.IsEnabled = !_busy; return it; }
         m.Items.Add(Item(Terms.LogView, null, () => _shell?.ShowLog()));
         m.Items.Add(new Separator());
-        m.Items.Add(Item("키 · 노브 개수…", "knob", () =>
+        m.Items.Add(Edit(Item("키 · 노브 개수…", "knob", () =>
         {
             var r = Dialogs.Counts(this, _ctrl.Profile.KeyCount, _ctrl.Profile.KnobCount);
             if (r is { } v) _ctrl.SetCounts(v.Keys, v.Knobs);
-        }));
-        m.Items.Add(Item("레이어 복사…", "layer", () =>
+        })));
+        m.Items.Add(Edit(Item("다른 레이어로 복사…", "layer", () =>
         {
             if (Dialogs.LayerTarget(this, _layer) is int to) { _ctrl.CopyLayer(_layer, to); ShowInfo("ok", $"레이어 {_layer + 1} → 레이어 {to + 1} 복사함", "실행 취소로 되돌림"); }
-        }));
-        m.Items.Add(Item("레이어 비우기…", "layer", () =>
+        })));
+        m.Items.Add(Edit(Item($"레이어 {_layer + 1} 비우기…", "layer", () =>
         {
             if (Dialogs.Confirm(this, $"레이어 {_layer + 1} 비우기", $"레이어 {_layer + 1} 의 키를 모두 비움. 업로드하면 키보드에서도 비워짐.\n실행 취소로 되돌릴 수 있음.", "비우기"))
                 _ctrl.ClearLayer(_layer);
-        }));
+        })));
         m.Items.Add(new Separator());
-        m.Items.Add(Item(Terms.ImportProfile, "pc-load", () => _shell?.ImportProfile(this)));
+        m.Items.Add(Edit(Item(Terms.ImportProfile, "pc-load", () => _shell?.ImportProfile(this))));
         m.Items.Add(Item(Terms.BackupAll, "copy", () => _shell?.BackupAll(this)));
-        m.Items.Add(Item(Terms.RestoreBackup, "undo", () => _shell?.RestoreBackup(this)));
+        m.Items.Add(Edit(Item(Terms.RestoreBackup, "undo", () => _shell?.RestoreBackup(this))));
         m.Items.Add(new Separator());
         m.Items.Add(BuildThemeItem());
         m.Items.Add(Item(Terms.Update, "upload", () => _shell?.ShowAbout(true)));
@@ -488,10 +565,11 @@ public partial class KeySettingsWindow : FluentWindow
         return list;
     }
 
-    /// <summary>프로필 목록 (모형 keyset-e · 판정 S9 · S13): 고르면 그 프로필을 화면에 엶</summary>
+    /// <summary>프로필 목록 (모형 keyset-e · 판정 S9 · S13): 고르면 그 프로필을 화면에 엶. 관리 줄엔 지금 프로필 이름(첫 사용 점검 9번).</summary>
     public ContextMenu BuildProfileMenu()
     {
         var m = new ContextMenu { MinWidth = 232 };
+        var curName = _ctrl.ProfileName;
         foreach (var f in _ctrl.Profiles.Files)
         {
             var path = f.FullName;
@@ -507,19 +585,19 @@ public partial class KeySettingsWindow : FluentWindow
                 s => ProfileNames.Problem(s, _ctrl.Profiles.Names), "만들기", "빈 프로필을 만들어 화면에 엶. 키보드에는 업로드해야 들어감.");
             if (n != null) _ctrl.CreateProfile(n);
         }));
-        m.Items.Add(Item("이름 바꾸기…", null, () =>
+        m.Items.Add(Item($"{curName} 이름 바꾸기…", null, () =>
         {
             var cur = _ctrl.ProfileName;
             var n = Dialogs.Input(this, "이름 바꾸기", "이름", cur, s => ProfileNames.Problem(s, _ctrl.Profiles.Names, except: cur), "바꾸기");
             if (n != null && n != cur) _ctrl.RenameCurrent(n);
         }));
-        m.Items.Add(Item("복제", "copy", () => _ctrl.DuplicateCurrent()));
-        m.Items.Add(Item("지우기…", "trash", () =>
+        m.Items.Add(Item($"{curName} 복제", "copy", () => _ctrl.DuplicateCurrent()));
+        m.Items.Add(Item($"{curName} 지우기…", "trash", () =>
         {
             var path = _ctrl.ProfilePath;
             if (path == null) return;
             if (_ctrl.Profiles.Files.Count <= 1) { Dialogs.Confirm(this, "지울 수 없음", "프로필이 하나뿐이라 지울 수 없음.", "확인", "닫기"); return; }
-            if (Dialogs.Confirm(this, $"「{_ctrl.ProfileName}」 지우기", "PC 에서 이 프로필 파일을 지움 — 키보드에 올린 설정은 그대로.\n전체 백업이 있으면 「백업에서 복원…」으로 되살릴 수 있음.", "지우기"))
+            if (Dialogs.Confirm(this, $"「{_ctrl.ProfileName}」 지우기", "PC 에서 이 프로필 파일을 지움 — 키보드에 업로드한 설정은 그대로.\n전체 백업이 있으면 「백업에서 복원…」으로 되살릴 수 있음.", "지우기"))
                 _ctrl.DeleteProfile(path);
         }, critical: true));
         return m;

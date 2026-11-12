@@ -47,10 +47,10 @@ public static class Terms
     /// <summary>노브 동작 이름 — 0 왼쪽 돌림 · 1 누름 · 2 오른쪽 돌림 (PROTOCOL §4 action 순서)</summary>
     public static readonly IReadOnlyList<string> KnobActions = new[] { "왼쪽 돌림", "누름", "오른쪽 돌림" };
 
-    /// <summary>버튼 이름 「버튼 1」</summary>
-    public static string Button(int keyId) => $"버튼 {keyId}";
+    /// <summary>키 이름 「키 1」 — 본 창(키 설정) · 키 창 제목 · 도움말이 같은 낱말(첫 사용 점검 7번 · S10)</summary>
+    public static string Key(int keyId) => $"키 {keyId}";
 
-    /// <summary>키 ID → 사람 이름 (버튼 1 · 노브1 왼쪽 돌림). 대화상자 제목 · 로그에 쓴다.</summary>
+    /// <summary>키 ID → 사람 이름 (키 1 · 노브1 왼쪽 돌림). 도움말 · 실행 취소 이름 · 로그에 쓴다.</summary>
     public static string KeyName(int keyId)
     {
         if (keyId >= 16)
@@ -58,8 +58,36 @@ public static class Terms
             int k = (keyId - 16) / 3, a = (keyId - 16) % 3;
             return $"{Knob(k)} {KnobActions[a]}";
         }
-        return Button(keyId);
+        return Key(keyId);
     }
+
+    /// <summary>키 창 제목 — 「키 1 · 레이어 3」 · 노브는 「노브1 · 왼쪽 돌림 · 레이어 3」 (첫 사용 점검 7번)</summary>
+    public static string KeyTitle(int keyId, int layer0)
+    {
+        if (keyId >= 16)
+        {
+            int k = (keyId - 16) / 3, a = (keyId - 16) % 3;
+            return $"{Knob(k)} · {KnobActions[a]} · 레이어 {layer0 + 1}";
+        }
+        return $"{Key(keyId)} · 레이어 {layer0 + 1}";
+    }
+
+    /// <summary>
+    /// 화면 글에 쓰지 않는 낱말 — 같은 뜻은 한 말로(첫 사용 점검 2번 · 7번). 시험(TermsTests)이 앱 · Core 소스의 주석을 뺀 글에서 찾는다.
+    /// 화살표 아이콘(upload · read) 방향은 그대로 — 회장님 승인.
+    /// </summary>
+    public static readonly IReadOnlyList<(string Word, string UseInstead)> Banned = new[]
+    {
+        // BANNED-BEGIN (이 목록 안의 글자는 시험이 건너뛴다)
+        ("올리", "업로드 (「업로드 끝」 · 「그래도 업로드」 · 「업로드 전에」 · 「업로드 안 한 변경」)"),
+        ("올림", "업로드 끝"),
+        ("올린", "업로드한"),
+        ("올려", "업로드해"),
+        ("올렸", "업로드했"),
+        ("층", "레이어"),
+        ("버튼", "키 (「키 1」) — 마우스 단추는 「단추」"),
+        // BANNED-END
+    };
 
     /// <summary>옛 말 — 앱 화면에 남으면 안 된다(시험이 찾는다). 0.2.1 화면 글자.</summary>
     public static readonly IReadOnlyList<string> Retired = new[]
@@ -80,5 +108,11 @@ public static class Terms
         "변경 후 '키보드에 업로드' 로 적용",
         "연결됨 — 재연결",
         "(프로필 없음 — 폴더 열기)",
+        // 0.3.0 첫 사용 점검에서 뺀 글 (3번 · 4번 · 8번 · 9번)
+        "(색 선택)",
+        "브라우저가 가로채는",
+        "위에서부터 차례로 입력됨",
+        "18자까지 키보드에 들어감",
+        "\"레이어 복사…\"",
     };
 }

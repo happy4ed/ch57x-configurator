@@ -92,8 +92,8 @@ public static class RenderScreens
                     finally { ctrl.SetBaseline(before); }
                 });
                 Shot("keyset-e", () => WithKeys(ctrl, w => ProfileMenuShot(w)));
-                Shot("dlg-key", () => Show(new KeyDialog("버튼 1 · 레이어 3", ctrl.Profile.Layers[2].GetValueOrDefault(1))));
-                Shot("dlg-text", () => Show(new KeyDialog("버튼 1 · 레이어 3", new Binding { Type = BindingType.Text, Text = "Best regards 안녕" })));
+                Shot("dlg-key", () => Show(new KeyDialog(Terms.KeyTitle(1, 2), ctrl.Profile.Layers[2].GetValueOrDefault(1))));
+                Shot("dlg-text", () => Show(new KeyDialog(Terms.KeyTitle(1, 2), new Binding { Type = BindingType.Text, Text = "Best regards 안녕" })));
                 Shot("hud", () => HudShot(ctrl, dark));
                 Shot("log", () =>
                 {
@@ -107,7 +107,7 @@ public static class RenderScreens
                     a.TroubleBox.IsExpanded = true;
                     return Show(a);
                 });
-                Shot("dlg-error", () => Show(Dialogs.BuildError(null, "업로드", new System.IO.IOException("장치가 응답하지 않음 (HID 쓰기 시간 초과)"))));
+                Shot("dlg-error", () => Show(Dialogs.BuildError(null, Terms.Upload, new System.IO.IOException("장치가 응답하지 않음 (HID 쓰기 시간 초과)"), canRetry: true, device: true)));
             }
             ctrl.Dispose();
         }
@@ -315,7 +315,7 @@ internal static class Sample
         return p;
     }
 
-    /// <summary>「올리지 않은 변경 2개」 기준 — 레이어 3 의 8 · 9번이 달랐던 상태</summary>
+    /// <summary>「업로드 안 한 변경 2개」 기준 — 레이어 3 의 8 · 9번이 달랐던 상태</summary>
     public static Profile My001Before()
     {
         var p = My001();

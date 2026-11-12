@@ -60,7 +60,7 @@ public static class Protocol
         byte kind = binding.Type switch
         {
             BindingType.Key => 1, BindingType.Media => 2, BindingType.Mouse => 3,
-            _ => throw new InvalidOperationException("unknown binding")
+            _ => throw new ProfileContentException("unknown binding")
         };
         var msg = new List<byte> { 0x03, 0xfe, keyId, (byte)(layer + 1), kind, 0, 0, 0, 0, 0 };
 
@@ -68,7 +68,7 @@ public static class Protocol
         {
             var steps = binding.Steps ?? new();
             if (steps.Count == 0) return new();
-            if (steps.Count > 18) throw new InvalidOperationException("매크로 시퀀스가 너무 깁니다 (최대 18)");
+            if (steps.Count > 18) throw new ProfileContentException("매크로 시퀀스가 너무 깁니다 (최대 18)");
             if (steps.Count == 1 && string.IsNullOrEmpty(steps[0].Code)) msg.Add(0);
             else msg.Add((byte)steps.Count);
             foreach (var s in steps)
@@ -93,7 +93,7 @@ public static class Protocol
                 case "wheel": msg.AddRange(new byte[] { 0x03, mod, 0, 0, 0, I8(binding.Delta) }); break;
                 case "move":  msg.AddRange(new byte[] { 0x05, mod, 0, I8(binding.Dx), I8(binding.Dy) }); break;
                 case "drag":  msg.AddRange(new byte[] { 0x05, mod, btns, I8(binding.Dx), I8(binding.Dy) }); break;
-                default: throw new InvalidOperationException("알 수 없는 마우스 동작: " + binding.Action);
+                default: throw new ProfileContentException("알 수 없는 마우스 동작: " + binding.Action);
             }
         }
 
@@ -102,7 +102,7 @@ public static class Protocol
         if (binding.Type == BindingType.Key && binding.Delay != 0)
         {
             int d = binding.Delay;
-            if (d > 6000) throw new InvalidOperationException("지원하는 최대 지연은 6000ms 입니다");
+            if (d > 6000) throw new ProfileContentException("지원하는 최대 지연은 6000ms 입니다");
             messages.Add(Pad64(new byte[] { 0x03, 0xfe, keyId, (byte)(layer + 1), 5, (byte)(d & 0xff), (byte)((d >> 8) & 0xff) }));
         }
 

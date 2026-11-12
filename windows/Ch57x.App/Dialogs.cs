@@ -9,7 +9,7 @@ namespace Ch57x.App;
 
 /// <summary>
 /// 작은 대화상자들 (Fluent ContentDialog 모양 · 안쪽 여백 24 · 강조 단추 하나 · Enter = 주 단추 · Esc = 취소).
-/// 확인 · 이름 입력 · 키/노브 개수 · 레이어 복사 대상 · 오류(판정 S14: 한 줄 + 「정보 복사」).
+/// 확인 · 이름 입력 · 키/노브 개수 · 레이어 복사 대상 · 오류(판정 S14 · 첫 사용 점검 1번: 쉬운 말 한 줄 + 할 일 · 「다시 해 보기」 · 「정보 복사」).
 /// </summary>
 public sealed class DialogWindow : FluentWindow
 {
@@ -120,7 +120,7 @@ public static class Dialogs
         return d.ShowDialog() == true ? ((int)k.SelectedItem, (int)n.SelectedItem) : null;
     }
 
-    /// <summary>「레이어 복사…」 대상 고르기</summary>
+    /// <summary>「다른 레이어로 복사…」 대상 고르기</summary>
     public static int? LayerTarget(Window? owner, int from)
     {
         var d = new DialogWindow(OwnerOf(owner), $"레이어 {from + 1} 복사");
@@ -139,34 +139,42 @@ public static class Dialogs
         return d.ShowDialog() == true ? (int?)radios.First(r => r.IsChecked == true).Tag : null;
     }
 
-    /// <summary>처리 안 된 오류 (판정 S14): 한 줄 설명 + 「정보 복사」(전문은 복사로 전달)</summary>
-    public static void Error(Window? owner, string context, Exception ex)
+    /// <summary>
+    /// 오류 알림 (판정 S14 · 첫 사용 점검 1번). 본문 = 쉬운 말 한 줄 + 할 일(Core ErrorText) — 예외 글 같은 기술 말은 「정보 복사」 내용에만.
+    /// retry 가 있으면(업로드 · 읽기처럼 다시 할 수 있는 일) 주 단추 「다시 해 보기」 · 보조 「닫기」, 없으면 「닫기」 하나.
+    /// context = 무슨 일을 하다 났는지(정보 복사의 「상황」). device = 키보드와 주고받던 일.
+    /// </summary>
+    public static void Error(Window? owner, string context, Exception ex, Action? retry = null, bool device = false)
     {
-        try { BuildError(owner, context, ex).ShowDialog(); }
-        catch (Exception inner) { Log.Error("오류 창", inner); }
+        bool again;
+        try { again = BuildError(owner, context, ex, retry != null, device).ShowDialog() == true && retry != null; }
+        catch (Exception inner) { Log.Error("오류 창", inner); return; }
+        if (again) retry!();
     }
 
-    public static DialogWindow BuildError(Window? owner, string context, Exception ex)
+    public static DialogWindow BuildError(Window? owner, string context, Exception ex, bool canRetry = false, bool device = false)
     {
         var d = new DialogWindow(OwnerOf(owner), "오류");
+        var plain = ErrorText.Of(ex, device);
         var line = new TextBlock { TextWrapping = TextWrapping.Wrap };
-        line.Inlines.Add(new Run(context) { FontWeight = FontWeights.SemiBold });
-        line.Inlines.Add(new Run($" · {OneLine(ex)}"));
+        line.Inlines.Add(new Run(plain.What) { FontWeight = FontWeights.SemiBold });
+        line.Inlines.Add(new Run($" — {plain.Todo}"));
         d.Body.Children.Add(line);
-        d.Body.Children.Add(DialogWindow.Text("앱은 계속 쓸 수 있음. 알려 주실 때는 「정보 복사」로 자세한 내용을 붙여 넣어 주세요.", "Caption", 12));
-        var copy = new Button { Content = "정보 복사", Tag = "copy" };
+        var copy = new Button { Content = "정보 복사", Tag = "copy", ToolTip = "알려 주실 때 붙여 넣을 자세한 내용(판 · 오류 · 최근 로그)을 복사" };
         copy.Click += (_, _) => { if (Clip(ErrorReport.Build(context, ex))) copy.Content = "복사됨"; };
         d.FooterLeft.Children.Add(copy);
-        d.Primary.Content = "닫기";
-        d.Primary.IsCancel = true;
-        d.Secondary.Visibility = Visibility.Collapsed;
+        if (canRetry)
+        {
+            d.Primary.Content = "다시 해 보기";
+            d.Secondary.Content = "닫기";
+        }
+        else
+        {
+            d.Primary.Content = "닫기";
+            d.Primary.IsCancel = true;
+            d.Secondary.Visibility = Visibility.Collapsed;
+        }
         return d;
-    }
-
-    public static string OneLine(Exception ex)
-    {
-        var m = (ex.Message ?? ex.GetType().Name).Replace("\r", " ").Replace("\n", " ").Trim();
-        return m.Length > 160 ? m[..157] + "…" : m;
     }
 
     public static bool Clip(string text)

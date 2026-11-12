@@ -8,7 +8,7 @@ public sealed class ProfileHistory
 
     public bool CanUndo => _stack.Count > 0;
     public int Count => _stack.Count;
-    /// <summary>되돌릴 일의 이름(단추 도움말 「실행 취소 — 버튼 3 바꿈」)</summary>
+    /// <summary>되돌릴 일의 이름(단추 도움말 「실행 취소 — 키 3 바꿈」)</summary>
     public string? NextLabel => _stack.Count > 0 ? _stack[^1].Label : null;
 
     /// <summary>바꾸기 직전에 부른다.</summary>

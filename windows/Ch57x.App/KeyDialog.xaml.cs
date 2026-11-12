@@ -8,8 +8,9 @@ namespace Ch57x.App;
 /// <summary>
 /// 키 설정 대화상자 — 2판 모형(dlg-key · dlg-text) 그대로.
 /// D4 키 칸 하나 + 「눌러서 입력」 · D5 동작 = 라디오 · 수정자 = 체크 상자 · D6 단계가 하나면 상자 없음 · 「단계 1 / 18」 ·
-/// D7 제목 = 대상 · 라벨 「이름」 · 단위 ms 는 칸 뒤 · D1 안내 두 줄 · D2 「이 키 비우기」 따로 한 줄 · S11 Enter 적용 · Esc 취소 ·
-/// S12 상용구 「13 / 18」 · 못 넣는 글자 즉시 안내 · 입력 한도 18.
+/// D7 제목 = 대상(「키 1 · 레이어 3」 — Terms.KeyTitle) · 라벨 「이름」 · 단위 ms 는 칸 뒤 · D2 「이 키 비우기」 따로 한 줄 · S11 Enter 적용 · Esc 취소 ·
+/// S12 상용구 「13 / 18」 · 못 넣는 글자 즉시 안내 · 입력 한도 18 · 못 넣는 글자가 있으면 「적용」 잠김(첫 사용 점검 4번).
+/// 첫 사용 점검 3번: 키 동작의 설명 줄은 「눌러서 입력」 한 줄만(단계 수 · 브라우저 안내는 뺌 — 「단계 1 / 18」과 겹치고 PC 앱엔 브라우저가 없음).
 /// </summary>
 public partial class KeyDialog : FluentWindow
 {
@@ -65,6 +66,7 @@ public partial class KeyDialog : FluentWindow
         RenderBody();
 
         BtnApply.Click += (_, _) => { Result = BuildResult(); DialogResult = true; };
+        ToolTipService.SetShowOnDisabled(BtnApply, true);
         BtnClear.Click += (_, _) => { Result = new Binding { Type = BindingType.None }; DialogResult = true; };
         PreviewKeyDown += OnCaptureKey;
         Loaded += (_, _) => TxtAlias.Focus();
@@ -90,6 +92,7 @@ public partial class KeyDialog : FluentWindow
     private void RenderBody()
     {
         Body.Children.Clear();
+        BtnApply.IsEnabled = true;   // 상용구만 못 넣는 글자가 있을 때 잠근다(RenderText)
         switch (_type)
         {
             case "key": RenderKey(); break;
@@ -153,9 +156,6 @@ public partial class KeyDialog : FluentWindow
         ms.SetResourceReference(StyleProperty, "Caption");
         delayRow.Children.Add(ms);
         Body.Children.Add(delayRow);
-
-        // 안내 두 줄 (D1 — 잘림 없음)
-        Body.Children.Add(Caption("여러 단계는 위에서부터 차례로 입력됨(최대 18단계).\nCtrl+W 처럼 브라우저가 가로채는 조합은 키를 먼저 고르고 수정자를 켜기.", 12));
     }
 
     private FrameworkElement StepContent(int i)
@@ -220,12 +220,15 @@ public partial class KeyDialog : FluentWindow
             var a = TextMacro.Analyze(tb.Text);
             counter.Text = TextMacro.Counter(a);
             warn.Text = TextMacro.Warning(a) ?? "";
+            // 못 넣는 글자가 있으면 적용 막기 — Enter(IsDefault)도 같이 막힌다 (첫 사용 점검 4번 · S12)
+            BtnApply.IsEnabled = a.Unsupported.Count == 0 && !a.OverLimit;
+            BtnApply.ToolTip = BtnApply.IsEnabled ? null : "넣을 수 없는 글자를 지우면 적용할 수 있음";
         }
         tb.TextChanged += (_, _) => { _text = tb.Text; update(); };
         update();
         Body.Children.Add(tb);
         Body.Children.Add(row);
-        Body.Children.Add(Caption("글자 하나가 키 한 번. 18자까지 키보드에 들어감.", 12));
+        Body.Children.Add(Caption("글자 하나가 키 한 번.", 12));
     }
 
     private void RenderMedia()

@@ -268,7 +268,7 @@
                     <Border x:Name="Bd" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
                             BorderThickness="1" CornerRadius="4" Padding="11,0,8,0" SnapsToDevicePixels="True">
                         <DockPanel>
-                            <local:Glyph DockPanel.Dock="Right" Kind="chev" Size="16" Margin="8,0,0,0" Foreground="{DynamicResource T2}"/>
+                            <local:Glyph x:Name="Chev" DockPanel.Dock="Right" Kind="chev" Size="16" Margin="8,0,0,0" Foreground="{DynamicResource T2}"/>
                             <ContentPresenter VerticalAlignment="Center">
                                 <ContentPresenter.Resources>
                                     <Style TargetType="TextBlock"><Setter Property="TextTrimming" Value="CharacterEllipsis"/></Style>
@@ -282,6 +282,12 @@
                         </Trigger>
                         <Trigger Property="IsPressed" Value="True">
                             <Setter TargetName="Bd" Property="Background" Value="{DynamicResource CtrlFill3}"/>
+                        </Trigger>
+                        <!-- 업로드 중 잠금 (첫 사용 점검 5번) — ButtonBase 와 같은 Fluent 비활성 색 -->
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter TargetName="Bd" Property="Background" Value="{DynamicResource CtrlFillDis}"/>
+                            <Setter TargetName="Chev" Property="Foreground" Value="{DynamicResource TDis}"/>
+                            <Setter Property="Foreground" Value="{DynamicResource TDis}"/>
                         </Trigger>
                     </ControlTemplate.Triggers>
                 </ControlTemplate>

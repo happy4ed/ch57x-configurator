@@ -9,13 +9,13 @@ using Ch57x.Core;
 namespace Ch57x.App;
 
 /// <summary>
-/// HUD — 키 배치를 화면 위에 작게. 0.3.0: H4 노브를 줄 단위(노브1~3) · 줄 높이를 키 칸과 같게 / H6 「보는 층」 · 체크 표지 + 테두리 /
+/// HUD — 키 배치를 화면 위에 작게. 0.3.0: H4 노브를 줄 단위(노브1~3) · 줄 높이를 키 칸과 같게 / H6 「보는 레이어」 · 체크 표지 + 테두리 /
 /// H7 머리 단추 셋 같은 24(닫기 · 잠금 토글 · 옮기기). 바탕 없음(H1) · 작은 글자(H8)는 그대로.
 /// </summary>
 public partial class HudWindow : Window
 {
     private readonly Controller _ctrl;
-    private int _layer;   // 보는 층 (펌웨어의 지금 층은 알 수 없어 사용자가 고름)
+    private int _layer;   // 보는 레이어 (펌웨어의 지금 레이어는 알 수 없어 사용자가 고름)
     private readonly HudSettings _settings = HudSettings.Load();
 
     /// <summary>잠금을 바꿨을 때(트레이 메뉴 갱신)</summary>
@@ -58,7 +58,7 @@ public partial class HudWindow : Window
     public int Layer { get => _layer; set { _layer = Math.Clamp(value, 0, 2); Refresh(); } }
     public bool Locked => _settings.ClickThrough;
 
-    /// <summary>잠금 = 클릭 통과(머리 · 밀대 · 층 줄만 잡힘)</summary>
+    /// <summary>잠금 = 클릭 통과(머리 · 밀대 · 레이어 줄만 잡힘)</summary>
     public void SetLocked(bool locked)
     {
         _settings.ClickThrough = locked;
@@ -229,7 +229,7 @@ public partial class HudWindow : Window
         return t;
     }
 
-    /// <summary>층 알약: 바탕 = 그 층 LED 색(끄면 중립) · 고른 층 = 체크 + 2px 테두리 (H6)</summary>
+    /// <summary>레이어 알약: 바탕 = 그 레이어 LED 색(끄면 중립) · 고른 레이어 = 체크 + 2px 테두리 (H6)</summary>
     private static Button LayerPill(int l, Brush? led, bool on, Action pick)
     {
         var content = new StackPanel { Orientation = Orientation.Horizontal };

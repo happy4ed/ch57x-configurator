@@ -9,7 +9,7 @@ public sealed record UploadPlanResult(List<byte[]> Messages, int Mine, int Kept,
 
 /// <summary>
 /// 업로드 보존 (판정 S1) — 웹 설정기 <c>web/js/app.js upload()</c> · <c>protocol.js uploadProfile(… { preserve })</c> 와 같은 방식.
-/// 펌웨어는 ★보내지 않은 키를 기본값으로 되돌린다(docs/PROTOCOL.md §2). 그래서 올리기 전에 키보드를 읽고,
+/// 펌웨어는 ★보내지 않은 키를 기본값으로 되돌린다(docs/PROTOCOL.md §2). 그래서 업로드 전에 키보드를 읽고,
 /// 프로필이 건드리지 않는 키는 ★읽은 값 그대로 되쓴다.
 ///
 /// 웹과 다른 점 하나: 프로필에서 「이 키 비우기」로 둔 키(<see cref="BindingType.None"/>)는 프로필이 그 키를 「가진」 것으로 본다 —
