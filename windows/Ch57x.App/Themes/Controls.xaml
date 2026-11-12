@@ -602,7 +602,7 @@
                         <ContentPresenter Margin="11,0,32,0" IsHitTestVisible="False" VerticalAlignment="Center"
                                           Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"/>
                         <Popup x:Name="PART_Popup" Placement="Bottom" AllowsTransparency="True" Focusable="False" VerticalOffset="-4" HorizontalOffset="-12"
-                               IsOpen="{TemplateBinding IsDropDownOpen}" PopupAnimation="None">
+                               IsOpen="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}" PopupAnimation="None">
                             <Border Margin="12,8,12,16" Background="{DynamicResource Bg4}" BorderBrush="{DynamicResource FlyoutStroke}" BorderThickness="1" CornerRadius="8" Padding="4"
                                     MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
                                 <Border.Effect>
@@ -820,14 +820,14 @@
         </Setter>
     </Style>
 
-    <!-- 카드 · 나눔선 -->
-    <Style x:Key="Card" TargetType="Border">
+    <!-- 카드 · 나눔선 (열쇠 이름이 색 Card · Divider 와 겹치지 않게 — 겹치면 색 자리에 Style 이 들어감: 0.3.0 첫 CI 렌더 실측) -->
+    <Style x:Key="CardBox" TargetType="Border">
         <Setter Property="Background" Value="{DynamicResource Card}"/>
         <Setter Property="BorderBrush" Value="{DynamicResource CardStroke}"/>
         <Setter Property="BorderThickness" Value="1"/>
         <Setter Property="CornerRadius" Value="4"/>
     </Style>
-    <Style x:Key="Divider" TargetType="Border">
+    <Style x:Key="DividerLine" TargetType="Border">
         <Setter Property="Height" Value="1"/>
         <Setter Property="Background" Value="{DynamicResource Divider}"/>
     </Style>

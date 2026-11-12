@@ -240,7 +240,7 @@ public partial class HudWindow : Window
         if (led != null) bd.Background = led; else bd.SetResourceReference(Border.BackgroundProperty, "CtrlFill");
         if (on) bd.SetResourceReference(Border.BorderBrushProperty, "T1"); else bd.BorderBrush = Brushes.Transparent;
         if (led == null && on) { /* 체크 표지 색 = 글자색 */ ((Glyph)content.Children[0]).SetResourceReference(Glyph.ForegroundProperty, "T1"); }
-        var btn = new Button { Content = bd, Margin = new Thickness(0, 0, 4, 0), Focusable = false, ToolTip = on ? $"레이어 {l + 1} 보는 중" : $"레이어 {l + 1} 보기" };
+        var btn = new Button { Content = bd, Margin = new Thickness(0, 0, 4, 0), Focusable = false, MinHeight = 0, Padding = new Thickness(0), ToolTip = on ? $"레이어 {l + 1} 보는 중" : $"레이어 {l + 1} 보기" };
         btn.Template = PillTemplate;
         System.Windows.Automation.AutomationProperties.SetName(btn, on ? $"레이어 {l + 1}, 보는 중" : $"레이어 {l + 1}");
         btn.Click += (_, _) => pick();

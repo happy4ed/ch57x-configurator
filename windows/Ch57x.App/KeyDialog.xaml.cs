@@ -121,7 +121,7 @@ public partial class KeyDialog : FluentWindow
             ht.SetResourceReference(StyleProperty, "Strong");
             head.Children.Add(ht);
             var card = new Border { Padding = new Thickness(12), Margin = new Thickness(0, 0, 0, 8), Child = new StackPanel { Children = { head, content } } };
-            card.SetResourceReference(StyleProperty, "Card");
+            card.SetResourceReference(StyleProperty, "CardBox");
             Body.Children.Add(card);
         }
         Body.Children.Add(Caption("「눌러서 입력」 뒤 키를 누르면 왼쪽 칸에 들어감"));

@@ -24,7 +24,7 @@
 
                 <StackPanel x:Name="Body" Margin="0,16,0,0"/>
 
-                <Border Style="{StaticResource Divider}" Margin="0,16,0,16"/>
+                <Border Style="{StaticResource DividerLine}" Margin="0,16,0,16"/>
                 <Button x:Name="BtnClear" Style="{StaticResource CriticalButton}" Tag="trash" Content="이 키 비우기" HorizontalAlignment="Left" Padding="0,0,11,0"
                         ToolTip="이 키를 비움 — 키 설정 창의 「실행 취소」로 되돌림"/>
             </StackPanel>

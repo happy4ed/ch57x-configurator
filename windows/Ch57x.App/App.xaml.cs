@@ -20,6 +20,8 @@ public partial class App : Application
         {
             AppMode.Render = true;
             base.OnStartup(e);
+            // 한 화면의 실패가 프로세스를 죽이지 않게 — 기록만 하고 다음 화면으로(render.log)
+            DispatcherUnhandledException += (_, ev) => { RenderScreens.Note($"디스패처 오류(계속): {ev.Exception}"); ev.Handled = true; };
             var dir = ri + 1 < e.Args.Length ? e.Args[ri + 1] : Path.Combine(Environment.CurrentDirectory, "render");
             int code = RenderScreens.Run(dir);
             Shutdown(code);

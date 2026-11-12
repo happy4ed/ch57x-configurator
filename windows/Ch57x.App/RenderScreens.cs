@@ -20,6 +20,8 @@ public static class RenderScreens
     private static StringBuilder _log = new();
     private static string _logPath = "";
 
+    public static void Note(string s) => L(s);
+
     private static void L(string s)
     {
         _log.AppendLine($"[{DateTime.Now:HH:mm:ss.fff}] {s}");
@@ -133,8 +135,8 @@ public static class RenderScreens
     private static void Place(Window w)
     {
         w.WindowStartupLocation = WindowStartupLocation.Manual;
-        w.Left = -32000;
-        w.Top = -32000;
+        w.Left = -10000;
+        w.Top = -10000;
         w.ShowActivated = false;
         w.ShowInTaskbar = false;
     }
@@ -173,18 +175,19 @@ public static class RenderScreens
         finally { w.Close(); }
     }
 
-    /// <summary>요소 하나를 화면 밖 투명 창에 띄워 그림으로 (메뉴)</summary>
-    private static (BitmapSource Img, FrameworkElement El, Window Host) Offscreen(FrameworkElement el)
+    /// <summary>메뉴를 실제 팝업으로 열어 그 메뉴만 그림으로 (ContextMenu 는 팝업 밖에 못 둠). 자리는 Compose 가 정한다.</summary>
+    private static BitmapSource OpenAndRender(ContextMenu menu, FrameworkElement target, Action<ContextMenu>? whileOpen = null)
     {
-        var host = new Window
-        {
-            WindowStyle = WindowStyle.None, AllowsTransparency = true, Background = Brushes.Transparent,
-            SizeToContent = SizeToContent.WidthAndHeight, Content = el, FontFamily = (FontFamily)Application.Current.Resources["AppFont"], FontSize = 14,
-        };
-        Place(host);
-        host.Show();
+        menu.PlacementTarget = target;
+        menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
+        menu.IsOpen = true;
         Pump();
-        return (Render(el), el, host);
+        try
+        {
+            whileOpen?.Invoke(menu);
+            return Render(menu);
+        }
+        finally { menu.IsOpen = false; Pump(); }
     }
 
     private static BitmapSource Compose(BitmapSource baseImg, params (BitmapSource Img, double X, double Y)[] overlays)
@@ -211,14 +214,15 @@ public static class RenderScreens
         var root = Root(w);
         var baseImg = Render(root);
         var menu = w.BuildMoreMenu();
-        var (img, el, host) = Offscreen(menu);
-        MenuItem? theme = menu.Items.OfType<MenuItem>().FirstOrDefault(i => (string?)i.Tag == "theme");
-        double themeY = theme != null ? theme.TranslatePoint(new Point(0, 0), el).Y : 0;
-        host.Close();
+        double themeY = 0;
+        var img = OpenAndRender(menu, w.MoreBtn, m =>
+        {
+            var theme = m.Items.OfType<MenuItem>().FirstOrDefault(i => (string?)i.Tag == "theme");
+            if (theme != null) themeY = theme.TranslatePoint(new Point(0, 0), m).Y;
+        });
         var sub = new ContextMenu { MinWidth = 176 };
         foreach (var it in w.BuildThemeChoices()) sub.Items.Add(it);
-        var (subImg, _, subHost) = Offscreen(sub);
-        subHost.Close();
+        var subImg = OpenAndRender(sub, w.MoreBtn);
 
         var btn = w.MoreBtn.TranslatePoint(new Point(0, 0), root);
         double menuW = img.PixelWidth * 96 / Dpi - ML - MR;
@@ -234,9 +238,7 @@ public static class RenderScreens
     {
         var root = Root(w);
         var baseImg = Render(root);
-        var menu = w.BuildProfileMenu();
-        var (img, _, host) = Offscreen(menu);
-        host.Close();
+        var img = OpenAndRender(w.BuildProfileMenu(), w.ProfileBtn);
         var btn = w.ProfileBtn.TranslatePoint(new Point(0, 0), root);
         return Compose(baseImg, (img, btn.X - ML, btn.Y + w.ProfileBtn.ActualHeight - MT));
     }

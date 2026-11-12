@@ -36,7 +36,7 @@
         <Border Height="12"/>
 
         <!-- 장치: 왼쪽 키 · 오른쪽 노브 세로 3줄 (E6 · 실물 배치 해석) -->
-        <Border Style="{StaticResource Card}" Padding="16">
+        <Border Style="{StaticResource CardBox}" Padding="16">
             <StackPanel x:Name="Device" Orientation="Horizontal"/>
         </Border>
         <Border Height="12"/>
@@ -51,7 +51,7 @@
             <StackPanel x:Name="Swatches" Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center"/>
         </StackPanel>
 
-        <Border Style="{StaticResource Divider}" Margin="0,16,0,16"/>
+        <Border Style="{StaticResource DividerLine}" Margin="0,16,0,16"/>
         <ProgressBar x:Name="Progress" Margin="0,-8,0,8" Minimum="0" Maximum="100" Visibility="Collapsed"/>
 
         <!-- 아래 줄: 왼쪽 = 되돌리기 성격(바탕 없는 단추) · 오른쪽 = 키보드 읽기 · 쓰기 (같은 줄은 같은 성격) -->

@@ -23,7 +23,7 @@
             <Button x:Name="BtnClear" Tag="trash" Content="지우기" Margin="8,0,0,0"/>
             <TextBlock DockPanel.Dock="Right" Text="최근 500줄" Style="{StaticResource Caption}"/>
         </DockPanel>
-        <Border Style="{StaticResource Card}" Height="248" Padding="12,8,4,8">
+        <Border Style="{StaticResource CardBox}" Height="248" Padding="12,8,4,8">
             <ScrollViewer x:Name="Scroller" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                 <ItemsControl x:Name="Lines" FontFamily="{DynamicResource MonoFont}" FontSize="13"/>
             </ScrollViewer>
