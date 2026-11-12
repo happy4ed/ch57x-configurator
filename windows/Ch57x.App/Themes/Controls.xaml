@@ -451,7 +451,9 @@
             <Setter.Value>
                 <ControlTemplate TargetType="TextBox">
                     <Grid>
-                        <Border x:Name="Bd" CornerRadius="4" BorderThickness="1" Background="{DynamicResource CtrlFill}" BorderBrush="{DynamicResource TextElevationBorder}" SnapsToDevicePixels="True"/>
+                        <Border x:Name="Bd" CornerRadius="4" BorderThickness="1" Background="{DynamicResource CtrlFill}" BorderBrush="{DynamicResource CtrlStroke}" SnapsToDevicePixels="True"/>
+                        <!-- 아래 1px 진한 선 (WinUI TextControlElevationBorder 모양). 기울기 붓 흉내는 높은 칸(상용구 64)에서 옆선 절반이 진해져 버림 — CI 렌더 실측 -->
+                        <Border Height="1" VerticalAlignment="Bottom" Margin="1,0,1,0" Background="{DynamicResource StrongStroke}" SnapsToDevicePixels="True"/>
                         <!-- 여백(Padding)은 TextBox 가 안쪽에서 직접 쓴다 — 여기서 또 주면 두 번 들어감(0.3.0 CI 렌더 실측) -->
                         <ScrollViewer x:Name="PART_ContentHost" Background="Transparent" VerticalAlignment="Stretch" Focusable="False"/>
                         <TextBlock x:Name="Ph" Text="{TemplateBinding Tag}" Foreground="{DynamicResource T3}" Margin="12,5,10,6" IsHitTestVisible="False"
