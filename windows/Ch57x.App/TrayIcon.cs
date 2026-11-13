@@ -18,10 +18,13 @@ public sealed class TrayIcon : IShell, IDisposable
     private LogWindow? _log;
     private HudWindow? _hud;
     private AboutWindow? _about;
+    private readonly PadPopupController? _pad;
 
-    public TrayIcon(Controller controller)
+    public TrayIcon(Controller controller, PadPopupController? pad = null)
     {
         Controller = controller;
+        _pad = pad;
+        if (_pad != null) _pad.StateChanged += RebuildMenu;
         _icon = new WinForms.NotifyIcon { Icon = LoadTrayIcon(), Visible = true, Text = Terms.AppName };
         _icon.DoubleClick += (_, _) => ShowKeySettings();
         _icon.ContextMenuStrip = new WinForms.ContextMenuStrip { Renderer = new TrayRenderer() };
@@ -228,6 +231,7 @@ public sealed class TrayIcon : IShell, IDisposable
         var auto = new WinForms.ToolStripMenuItem("윈도우 시작 시 자동실행", null, (_, _) => ToggleAutoStart()) { Checked = autoOn };
         try { auto.ToolTipText = AutoStart.Describe(); } catch { }
         menu.Items.Add(auto);
+        if (_pad != null) AddPadItems(menu);
         AutoStart.Health health = AutoStart.Health.Off;
         try { health = AutoStart.State; } catch { }
         if (health is AutoStart.Health.Broken or AutoStart.Health.Volatile or AutoStart.Health.Malformed or AutoStart.Health.Blocked)
@@ -245,6 +249,27 @@ public sealed class TrayIcon : IShell, IDisposable
         menu.Items.Add(Item(Terms.About, () => ShowAbout(false)));
         menu.Items.Add(Item(Terms.Exit, () => Application.Current.Shutdown()));
         foreach (WinForms.ToolStripItem i in menu.Items) if (i is WinForms.ToolStripMenuItem mi && mi.Enabled && mi.ForeColor != System.Drawing.Color.FromArgb(0xC4, 0x2B, 0x1C)) mi.ForeColor = TrayRenderer.TextColor(ThemeManager.IsDark);
+    }
+
+    /// <summary>권한 질문 팝업 (0.3.1): 켜기/끄기(체크) + 위치 하위 메뉴(고른 것 체크)</summary>
+    private void AddPadItems(WinForms.ContextMenuStrip menu)
+    {
+        var pad = _pad!;
+        var on = new WinForms.ToolStripMenuItem("권한 질문 팝업 받기", null, (_, _) => pad.SetEnabled(!pad.Enabled)) { Checked = pad.Enabled };
+        on.ToolTipText = !pad.Enabled ? "끄면 VS Code 알림으로 받음"
+            : pad.LastStart == PadServerStart.NameTaken ? "같은 이름의 통로를 다른 프로그램이 먼저 열어 받지 못함 — 로그 보기"
+            : pad.LastStart == PadServerStart.Error ? "통로를 열지 못함 — 로그 보기"
+            : "에이전트 패드 확장이 보낸 권한 질문을 화면 오른쪽에 띄움 · 패드 7 Yes · 8 Yes all · 9 No";
+        menu.Items.Add(on);
+        var where = new WinForms.ToolStripMenuItem("권한 팝업 위치") { Enabled = pad.Enabled };
+        var color = TrayRenderer.TextColor(ThemeManager.IsDark);
+        foreach (var (key, text) in new[] { (PadPopupController.CornerBottomRight, "오른쪽 아래"), (PadPopupController.CornerTopRight, "오른쪽 위") })
+        {
+            var k = key;
+            where.DropDownItems.Add(new WinForms.ToolStripMenuItem(text, null, (_, _) => pad.SetCorner(k)) { Checked = pad.Corner == k, ForeColor = color });
+        }
+        if (where.DropDown is WinForms.ToolStripDropDownMenu dd) dd.Renderer = _icon.ContextMenuStrip!.Renderer;
+        menu.Items.Add(where);
     }
 
     private void ToggleAutoStart()

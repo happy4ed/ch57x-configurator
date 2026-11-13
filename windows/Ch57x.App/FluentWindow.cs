@@ -60,4 +60,6 @@ public class FluentWindow : Window
 public static class AppMode
 {
     public static bool Render { get; set; }
+    /// <summary>파이프 왕복 시험 모드(--pipe-test · CI) — 설정 파일을 쓰지 않는다</summary>
+    public static bool PipeTest { get; set; }
 }

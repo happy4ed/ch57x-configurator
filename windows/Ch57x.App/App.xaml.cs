@@ -7,6 +7,7 @@ namespace Ch57x.App;
 public partial class App : Application
 {
     private TrayIcon? _tray;
+    private PadPopupController? _pad;
     private static Mutex? _singleInstance;
     private static EventWaitHandle? _showSignal;
     private const string MutexName = "Ch57xConfigurator.SingleInstance.v1";
@@ -25,6 +26,19 @@ public partial class App : Application
             var dir = ri + 1 < e.Args.Length ? e.Args[ri + 1] : Path.Combine(Environment.CurrentDirectory, "render");
             int code = RenderScreens.Run(dir);
             Shutdown(code);
+            return;
+        }
+
+        // ── 파이프 왕복 시험 모드 (--pipe-test <폴더> · CI): 진짜 파이프 서버 · 팝업 · 전역 키만 띄우고 각본대로 조작
+        int pi = Array.FindIndex(e.Args, a => string.Equals(a, "--pipe-test", StringComparison.OrdinalIgnoreCase));
+        if (pi >= 0)
+        {
+            AppMode.PipeTest = true;
+            base.OnStartup(e);
+            DispatcherUnhandledException += (_, ev) => { PipeTest.Note($"디스패처 오류(계속): {ev.Exception}"); ev.Handled = true; };
+            ThemeManager.ApplyFixed(false);
+            AppIcons.Register(Resources);
+            PipeTest.Run(this, pi + 1 < e.Args.Length ? e.Args[pi + 1] : Path.Combine(Environment.CurrentDirectory, "pipe-test"));
             return;
         }
 
@@ -67,7 +81,10 @@ public partial class App : Application
 
         Log.Write($"시작됨 · {Terms.AppName} {ErrorReport.Version()}{(trayOnly ? " · 트레이로" : "")}");
         var ctrl = new Controller(settings, new ProfileManager());
-        _tray = new TrayIcon(ctrl);
+        // 권한 질문 팝업 (0.3.1) — 에이전트 패드 확장(VS Code)이 named pipe 로 보낸다
+        try { _pad = new PadPopupController(settings); _pad.Start(); }
+        catch (Exception ex) { Log.Error("권한 질문 팝업 시작", ex); _pad = null; }
+        _tray = new TrayIcon(ctrl, _pad);
         if (!trayOnly) _tray.ShowKeySettings();   // 실행하면 키 설정 창 (S2)
 
         // 두 번째 실행의 「창을 앞으로」 신호
@@ -85,7 +102,8 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
-        if (AppMode.Render) { base.OnExit(e); return; }
+        if (AppMode.Render || AppMode.PipeTest) { base.OnExit(e); if (AppMode.PipeTest) Environment.Exit(e.ApplicationExitCode); return; }
+        try { _pad?.Dispose(); } catch { }
         try { _tray?.Dispose(); } catch { }
         try { _singleInstance?.ReleaseMutex(); _singleInstance?.Dispose(); } catch { }
         base.OnExit(e);
@@ -95,6 +113,7 @@ public partial class App : Application
 
     private void ForceExit()
     {
+        try { _pad?.Dispose(); } catch { }
         try { _tray?.Dispose(); } catch { }
         try { _singleInstance?.ReleaseMutex(); _singleInstance?.Dispose(); } catch { }
         Environment.Exit(0);

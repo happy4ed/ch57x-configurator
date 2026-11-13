@@ -6,6 +6,7 @@ name: build-windows-app
 #    Artifacts 만 있으면 사용자가 최신 빌드를 받을 방법이 사실상 없다(2026-09-13).
 #  · 수동 실행(workflow_dispatch) — 브랜치에서도 돈다: gh workflow run build.yml --ref <브랜치>
 #  · 0.3.0: Core 단위 시험(windows/Ch57x.Tests) + 화면 렌더 확인(--render-screens) → PNG 를 Artifacts 「render-png」로.
+#  · 0.3.1: 권한 질문 파이프 왕복(--pipe-test + node) · 첫 인스턴스 시험 → 기록을 Artifacts 「pipe-test」로.
 on:
   push:
     branches: [ master ]
@@ -90,6 +91,73 @@ jobs:
         with:
           name: render-png
           path: render/
+          if-no-files-found: warn
+
+      # ──────── 0.3.1 권한 질문 파이프 왕복 — 앱을 --pipe-test 로 띄우고(진짜 파이프 서버 · 팝업 · RegisterHotKey),
+      # node 로 에이전트 패드 확장 pcPipe.ts 와 같은 방식(net.connect · 줄 JSON)으로 붙어 각본 16가지를 본다.
+      - name: Pad pipe round trip
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        timeout-minutes: 5
+        shell: pwsh
+        run: |
+          node --version
+          $exe = Get-ChildItem publish-portable -Filter *.exe | Select-Object -First 1
+          $out = Join-Path $PWD 'pipe-test'
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          $log = Join-Path $out 'pipe-test.log'
+          $p = Start-Process -FilePath $exe.FullName -ArgumentList '--pipe-test', "`"$out`"" -PassThru
+          $null = $p.Handle
+          $ready = $false
+          for ($i = 0; $i -lt 120; $i++) {
+            if ((Test-Path $log) -and (Select-String -Path $log -Pattern '준비됨' -Quiet)) { $ready = $true; break }
+            if ($p.HasExited) { break }
+            Start-Sleep -Milliseconds 500
+          }
+          if (-not $ready) {
+            Write-Host '앱이 준비되지 않음'
+            if (Test-Path $log) { Get-Content $log }
+            if (-not $p.HasExited) { Stop-Process -Id $p.Id -Force }
+            exit 1
+          }
+          Push-Location $out
+          node "$env:GITHUB_WORKSPACE/windows/tools/pad-pipe-roundtrip.js" run "$log"
+          $nodeCode = $LASTEXITCODE
+          Pop-Location
+          if (-not $p.WaitForExit(30000)) { Stop-Process -Id $p.Id -Force; Write-Host '앱이 끝나지 않음 — PID 로 멈춤'; $appCode = 124 } else { $appCode = $p.ExitCode }
+          Write-Host "node 종료 코드 $nodeCode · 앱 종료 코드 $appCode"
+          Write-Host '──── pipe-test.log'
+          Get-Content $log
+          if ($nodeCode -ne 0 -or $appCode -ne 0) { exit 1 }
+
+      # 같은 이름 파이프를 다른 프로그램(node)이 먼저 열었으면 앱은 받지 않아야 한다(FirstPipeInstance) — 종료 코드 3
+      - name: Pad pipe first instance
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        timeout-minutes: 3
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem publish-portable -Filter *.exe | Select-Object -First 1
+          $out = Join-Path $PWD 'pipe-test-squat'
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          $ready = Join-Path $out 'squat.ready'
+          $n = Start-Process -FilePath node -ArgumentList "`"$env:GITHUB_WORKSPACE/windows/tools/pad-pipe-roundtrip.js`"", 'squat', '30000', "`"$ready`"" -PassThru -NoNewWindow
+          for ($i = 0; $i -lt 60 -and -not (Test-Path $ready); $i++) { Start-Sleep -Milliseconds 250 }
+          if (-not (Test-Path $ready)) { Write-Host 'node 가 파이프를 먼저 열지 못함'; if (-not $n.HasExited) { Stop-Process -Id $n.Id -Force }; exit 1 }
+          $p = Start-Process -FilePath $exe.FullName -ArgumentList '--pipe-test', "`"$out`"" -PassThru
+          $null = $p.Handle
+          if (-not $p.WaitForExit(30000)) { Stop-Process -Id $p.Id -Force; $code = 124 } else { $code = $p.ExitCode }
+          Write-Host "앱 종료 코드 $code (기대 3 = 이름 선점됨 · 받지 않음)"
+          Get-Content (Join-Path $out 'pipe-test.log')
+          if (-not $n.HasExited) { Stop-Process -Id $n.Id -Force }
+          if ($code -ne 3) { exit 1 }
+
+      - name: Upload pipe test logs
+        if: ${{ always() && !startsWith(github.ref, 'refs/tags/v') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: pipe-test
+          path: |
+            pipe-test/
+            pipe-test-squat/
           if-no-files-found: warn
 
       # ──────── 태그(v*)일 때만: 로그인 없이 받을 수 있는 Release 를 만든다.

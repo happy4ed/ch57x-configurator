@@ -108,6 +108,12 @@ public static class RenderScreens
                     return Show(a);
                 });
                 Shot("dlg-error", () => Show(Dialogs.BuildError(null, Terms.Upload, new System.IO.IOException("장치가 응답하지 않음 (HID 쓰기 시간 초과)"), canRetry: true, device: true)));
+                // 0.3.1 권한 질문 팝업 — Claude · Codex · 대기 2건 · 패드 키를 못 잡음 · 1초 안 누름
+                Shot("perm-claude", () => PopupShot(SamplePad.Claude, 0));
+                Shot("perm-codex", () => PopupShot(SamplePad.Codex, 0));
+                Shot("perm-queue", () => PopupShot(SamplePad.ClaudeEdit, 2));
+                Shot("perm-busy", () => PopupShot(SamplePad.Claude, 0, p => p.KeysBusy = true));
+                Shot("perm-fresh", () => PopupShot(SamplePad.Claude, 1, p => p.Notice(PermissionPopup.FreshNotice)));
             }
             ctrl.Dispose();
         }
@@ -268,6 +274,34 @@ public static class RenderScreens
         finally { hud.Close(); }
     }
 
+    /// <summary>권한 질문 팝업 — 바탕 없는 창(그림자 여백 포함)이라 HUD 처럼 책상 색 위에 그린다. 남은 시간 118초로 고정.</summary>
+    private static BitmapSource PopupShot(PadRequest r, int waiting, Action<PermissionPopup>? tweak = null)
+    {
+        var p = new PermissionPopup();
+        Place(p);
+        long now = r.Deadline - 118_000;
+        p.ShowView(new PadView(r, waiting, r.Deadline, now), now);
+        tweak?.Invoke(p);
+        p.Show();
+        Pump();
+        try
+        {
+            var img = Render(Root(p));
+            double w = img.PixelWidth * 96 / Dpi, h = img.PixelHeight * 96 / Dpi;
+            var dv = new DrawingVisual();
+            using (var dc = dv.RenderOpen())
+            {
+                dc.DrawRectangle((Brush)Application.Current.Resources["Desk"], null, new Rect(0, 0, w + 16, h + 16));
+                dc.DrawImage(img, new Rect(8, 8, w, h));
+            }
+            var rtb = new RenderTargetBitmap((int)Math.Ceiling((w + 16) * Dpi / 96), (int)Math.Ceiling((h + 16) * Dpi / 96), Dpi, Dpi, PixelFormats.Pbgra32);
+            rtb.Render(dv);
+            rtb.Freeze();
+            return rtb;
+        }
+        finally { p.Close(); }
+    }
+
     private static void Save(BitmapSource bmp, string path)
     {
         var enc = new PngBitmapEncoder();
@@ -275,6 +309,21 @@ public static class RenderScreens
         using var fs = File.Create(path);
         enc.Save(fs);
     }
+}
+
+/// <summary>
+/// 권한 질문 견본 — 훅 · 서버 쪽 확장이 실제로 만드는 모양(where = 「터미널 「이름」 · tmux 세션:창.칸 · 폴더」 · yes_all = NOTES 하5 예).
+/// 명령 · 폴더 이름은 견본(근거 미확보 — 회장님 실제 명령 아님). Codex 의 도구 이름도 견본.
+/// </summary>
+internal static class SamplePad
+{
+    private const long At = 1_800_000_000_000;
+    public static readonly PadRequest Claude = new("3f2a9c1e-7b4d-4e0a-9d61-2c8f5b7a1e90", PadCli.Claude, "Bash",
+        "npm test -- --watch=false && git status --short", "터미널 「bash」 · tmux research:0.1 · ch57x-configurator", "s1", "저장소 로컬 설정에 Bash 허용 규칙 저장", 120000, At);
+    public static readonly PadRequest Codex = new("8c1d2e3f-4a5b-4c6d-8e7f-901a2b3c4d5e", PadCli.Codex, "Bash",
+        "cargo build --release", "터미널 「bash」 · tmux research:1.0 · server-api", "s2", "Codex 는 이번만 허용", 60000, At);
+    public static readonly PadRequest ClaudeEdit = new("5e6f7a8b-9c0d-4e1f-a2b3-c4d5e6f7a8b9", PadCli.Claude, "Edit",
+        "PadPipeServer.cs", "Claude 확장 창 · ch57x-configurator", "s3", "이 세션 동안 편집 자동 허용", 120000, At);
 }
 
 /// <summary>
@@ -326,7 +375,7 @@ internal static class Sample
 
     public static readonly string[] LogLines =
     {
-        "[14:30:02] 시작됨 · CH57x 설정기 0.3.0",
+        "[14:30:02] 시작됨 · CH57x 설정기 0.3.1",
         @"[14:30:02] 프로필 폴더: C:\Users\(사용자)\AppData\Roaming\Ch57x\Profiles",
         "[14:30:03] 연결됨: CH57x",
         "[14:30:03] 기기 감지: 키 9 · 노브 3",

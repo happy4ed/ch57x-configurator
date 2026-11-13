@@ -1,0 +1,61 @@
+<Window x:Class="Ch57x.App.PermissionPopup"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="CH57x 권한 질문"
+        WindowStyle="None" AllowsTransparency="True" Background="Transparent"
+        Topmost="True" ShowInTaskbar="False" ShowActivated="False" ResizeMode="NoResize" Focusable="False"
+        Width="384" SizeToContent="Height"
+        FontFamily="{DynamicResource AppFont}" FontSize="14" Foreground="{DynamicResource T1}" UseLayoutRounding="True">
+    <!--
+      권한 질문 팝업 (PC 앱 0.3.1 · 권한팝업-설계.md 4)). 포커스를 뺏지 않는다: ShowActivated=False + WS_EX_NOACTIVATE(코드) · 단추도 Focusable=False.
+      모양 = 메뉴(ContextMenu)와 같은 떠 있는 표면: Bg4 · FlyoutStroke 1 · 모서리 8 · 그림자(BlurRadius 16 · 아래 4) — 바깥 여백 12,8,12,16 은 그림자 자리.
+      바깥 글(명령 · 도구 · 위치 · Yes all 설명)은 모두 TextBlock.Text 평문 — 링크 · 마크업 · 밑줄 바로 가기 해석 없음.
+    -->
+    <Border x:Name="Card" Margin="12,8,12,16" Background="{DynamicResource Bg4}" BorderBrush="{DynamicResource FlyoutStroke}" BorderThickness="1" CornerRadius="8" Padding="16">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="16" ShadowDepth="4" Direction="270" Color="Black" Opacity="0.18"/>
+        </Border.Effect>
+        <StackPanel>
+            <StackPanel Orientation="Horizontal">
+                <Image Source="{DynamicResource AppIcon16}" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                <TextBlock x:Name="Heading" Style="{StaticResource Strong}" Text="Claude Code 권한 질문"/>
+            </StackPanel>
+
+            <!-- 명령 앞 120자 — 고정폭 글꼴 · 줄바꿈 -->
+            <Border x:Name="CommandBox" Margin="0,12,0,0" Background="{DynamicResource AltFill}" BorderBrush="{DynamicResource CardStroke}" BorderThickness="1" CornerRadius="4" Padding="8,6,8,6">
+                <TextBlock x:Name="Command" FontFamily="{DynamicResource MonoFont}" TextWrapping="Wrap" LineHeight="20" LineStackingStrategy="BlockLineHeight"/>
+            </Border>
+
+            <Grid x:Name="Facts" Margin="0,12,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Text="도구" Foreground="{DynamicResource T2}" Margin="0,0,12,4"/>
+                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="Tool" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                <TextBlock Grid.Row="1" x:Name="WhereLabel" Text="위치" Foreground="{DynamicResource T2}" Margin="0,0,12,4"/>
+                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="Where" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                <TextBlock Grid.Row="2" x:Name="YesAllLabel" Text="Yes all 이면" Foreground="{DynamicResource T2}" Margin="0,0,12,4"/>
+                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="YesAll" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                <TextBlock Grid.Row="3" Text="남은 시간" Foreground="{DynamicResource T2}" Margin="0,0,12,0"/>
+                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="TimeLeft"/>
+            </Grid>
+
+            <!-- 같은 폭 단추 셋 (사이 8) · 주 동작 하나만 강조 -->
+            <UniformGrid Columns="3" Margin="0,16,0,0">
+                <Button x:Name="BtnYes" Style="{StaticResource AccentButton}" Content="Yes" Focusable="False" Margin="0,0,4,0" AutomationProperties.Name="Yes, 패드 7"/>
+                <Button x:Name="BtnYesAll" Content="Yes all" Focusable="False" Margin="4,0,4,0" AutomationProperties.Name="Yes all, 패드 8"/>
+                <Button x:Name="BtnNo" Content="No" Focusable="False" Margin="4,0,0,0" AutomationProperties.Name="No, 패드 9"/>
+            </UniformGrid>
+
+            <!-- 패드 키 안내 · 알림 한 줄(같은 자리 — 줄이 늘지 않게) -->
+            <TextBlock x:Name="Hint" Margin="0,12,0,0" Foreground="{DynamicResource T2}" TextTrimming="CharacterEllipsis" Text="패드 7 Yes · 8 Yes all · 9 No"/>
+        </StackPanel>
+    </Border>
+</Window>

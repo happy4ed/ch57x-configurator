@@ -17,13 +17,19 @@ public sealed class AppSettings
     /// <summary>로그 보기 창의 같은 안내를 「확인」으로 닫았는가</summary>
     public bool TrayHintDismissed { get; set; }
 
+    /// <summary>「권한 질문 팝업 받기」 (0.3.1 · 기본 켜기) — 끄면 파이프를 닫아 확장이 VS Code 알림으로 넘어간다</summary>
+    public bool PadPopup { get; set; } = true;
+
+    /// <summary>권한 질문 팝업 자리: bottom-right(기본) · top-right</summary>
+    public string PadPopupCorner { get; set; } = PadPopupController.CornerBottomRight;
+
     private static readonly JsonSerializerOptions Opt = new() { WriteIndented = true };
     private static string Path => System.IO.Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Ch57x", "settings.json");
 
     public static AppSettings Load()
     {
-        if (AppMode.Render) return new();
+        if (AppMode.Render || AppMode.PipeTest) return new();
         try { if (File.Exists(Path)) return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(Path)) ?? new(); }
         catch { /* 깨진 파일 = 새로 시작 */ }
         return new();
@@ -31,7 +37,7 @@ public sealed class AppSettings
 
     public void Save()
     {
-        if (AppMode.Render) return;   // 렌더 모드는 설정 파일을 건드리지 않는다
+        if (AppMode.Render || AppMode.PipeTest) return;   // 렌더 · 시험 모드는 설정 파일을 건드리지 않는다
         try
         {
             Directory.CreateDirectory(System.IO.Path.GetDirectoryName(Path)!);
