@@ -167,6 +167,25 @@ public static class PadProtocol
         return sb.ToString().Trim();
     }
 
+    /// <summary>
+    /// 한글 낱말 안에서 줄이 갈리지 않게 — 한글과 붙은 이웃 글자(공백 아님) 사이에 U+2060(WORD JOINER). 띄어쓰기에서만 줄이 바뀐다.
+    /// WPF 는 한글을 글자마다 끊는다(0.3.1 첫 CI 렌더 실측: 「허용 규칙 저 / 장」). 한 낱말이 칸보다 길면 TextWrapping.Wrap 이 그래도 끊는다.
+    /// Plain 다음에 화면에만 쓴다(받은 글의 U+2060 은 Plain 이 「�」로 바꿔 둠).
+    /// </summary>
+    public static string KeepWords(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return "";
+        var sb = new StringBuilder(s.Length + 8);
+        for (int i = 0; i < s.Length; i++)
+        {
+            if (i > 0 && !char.IsWhiteSpace(s[i - 1]) && !char.IsWhiteSpace(s[i]) && (IsHangul(s[i - 1]) || IsHangul(s[i]))) sb.Append('\u2060');
+            sb.Append(s[i]);
+        }
+        return sb.ToString();
+    }
+
+    private static bool IsHangul(char c) => (c >= '\uAC00' && c <= '\uD7A3') || (c >= '\u1100' && c <= '\u11FF') || (c >= '\u3130' && c <= '\u318F');
+
     private static bool IsInvisibleFormat(char c) =>
         c == '؜' || (c >= '​' && c <= '‏') || (c >= '‪' && c <= '‮') || (c >= '⁠' && c <= '⁩') || c == '﻿';
 }

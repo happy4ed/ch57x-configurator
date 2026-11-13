@@ -59,13 +59,13 @@ public partial class PermissionPopup : Window
             Command.Text = cmd;
             CommandBox.Visibility = cmd.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
             var tool = PadProtocol.Plain(r.Tool);
-            Tool.Text = tool.Length > 0 ? tool : "(이름 없음)";
+            Tool.Text = tool.Length > 0 ? PadProtocol.KeepWords(tool) : "(이름 없음)";
             var where = PadProtocol.Plain(r.Where);
-            Where.Text = where;
+            Where.Text = PadProtocol.KeepWords(where);
             WhereLabel.Visibility = Where.Visibility = where.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
             // Codex 는 세션 허용이 없어 Yes all = 이번만 허용 (훅이 allow 로 바꿈 — 근거 P-2)
             var yesAll = r.Cli == PadCli.Codex ? (r.YesAll.Length > 0 ? PadProtocol.Plain(r.YesAll) : "Codex 는 이번만 허용") : PadProtocol.Plain(r.YesAll);
-            YesAll.Text = yesAll;
+            YesAll.Text = PadProtocol.KeepWords(yesAll);
             YesAllLabel.Visibility = YesAll.Visibility = yesAll.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
         }
         _view = v;

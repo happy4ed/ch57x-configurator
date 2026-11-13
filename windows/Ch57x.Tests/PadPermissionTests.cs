@@ -103,6 +103,17 @@ public class PadPermissionTests
         Assert.Equal("", PadProtocol.Plain(null));
     }
 
+    [Fact]
+    public void KeepWords_JoinsHangulInsideWordsOnly()
+    {
+        const char J = '\u2060';
+        Assert.Equal($"규{J}칙 저{J}장", PadProtocol.KeepWords("규칙 저장"));
+        Assert.Equal($"Bash{J}허{J}용", PadProtocol.KeepWords("Bash허용"));
+        Assert.Equal("npm test --x", PadProtocol.KeepWords("npm test --x"));   // 한글 없으면 그대로
+        Assert.Equal($"「bash」 · 터{J}미{J}널", PadProtocol.KeepWords("「bash」 · 터미널"));
+        Assert.Equal("", PadProtocol.KeepWords(""));
+    }
+
     // ───────────────────────── 줄 나누기 (64KB)
 
     [Fact]
