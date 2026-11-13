@@ -162,6 +162,15 @@ public class PadPermissionTests
     }
 
     [Fact]
+    public void PadText_KeepParts_BreaksOnlyAtSeparators()
+    {
+        const char N = '\u00A0';
+        Assert.Equal($"server-api · 터미널{N}「bash」 · tmux{N}research:1.0", PadText.KeepParts("server-api · 터미널 「bash」 · tmux research:1.0"));
+        Assert.Equal("repo", PadText.KeepParts("repo"));
+        Assert.Equal("", PadText.KeepParts(""));
+    }
+
+    [Fact]
     public void PadText_ConnectorSegments_RejoinToSame()
     {
         Assert.Equal(new[] { "npm test -- --watch=false ", "&& git status --short" }, PadText.ConnectorSegments("npm test -- --watch=false && git status --short"));

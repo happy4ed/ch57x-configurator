@@ -48,6 +48,13 @@ public static class PadText
         return tail + " · " + where[..i];
     }
 
+    /// <summary>
+    /// 위치 줄바꿈 — 「 · 」 사이 토막 안의 공백은 줄바꿈 없는 공백(U+00A0)으로, 줄은 「 · 」 에서만 바뀌게
+    /// (0.3.1 마무리 CI 렌더 실측: 「… · tmux / research:1.0」). 토막 하나가 칸보다 길면 화면이 그래도 끊는다.
+    /// </summary>
+    public static string KeepParts(string where) =>
+        string.IsNullOrEmpty(where) ? "" : string.Join(" · ", where.Split(" · ").Select(p => p.Replace(' ', '\u00A0')));
+
     private static bool IsPlacePart(string s) =>
         s.StartsWith("터미널 「", StringComparison.Ordinal) || s.StartsWith("tmux ", StringComparison.Ordinal) ||
         s.StartsWith("Claude 확장 창", StringComparison.Ordinal) || s.StartsWith("원격 창", StringComparison.Ordinal);

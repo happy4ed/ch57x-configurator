@@ -15,8 +15,8 @@ public partial class PermissionPopup : Window
 {
     /// <summary>바뀐 지 1초 안에 누름 (첫 사용 점검 중 10)</summary>
     public const string FreshNotice = "방금 누른 키는 무시함 · 바뀐 질문 보고 다시 누르기";
-    /// <summary>F19~F21 을 다른 프로그램이 먼저 등록함 — 상태 문장(링크처럼 보이지 않게 · 점검 중 11)</summary>
-    public const string KeysBusyNotice = "패드 키를 다른 프로그램이 씀 — 마우스로만 답할 수 있음";
+    /// <summary>F19~F21 을 다른 프로그램이 먼저 등록함 — 상태 문장(링크처럼 보이지 않게 · 점검 중 11). 「수 있음」 은 줄바꿈 없는 공백(렌더 실측 「답할 수 / 있음」)</summary>
+    public const string KeysBusyNotice = "패드 키를 다른 프로그램이 씀 — 마우스로만 답할 수\u00A0있음";
 
     /// <summary>단추로 답함 (그때 그려져 있던 request_id 와 함께 — 그 사이 바뀌었으면 대기열이 버린다). 닫기 단추 = None(터미널에서 답)</summary>
     public event Action<string, PadDecision>? Clicked;
@@ -89,7 +89,7 @@ public partial class PermissionPopup : Window
             BreakCommand();
 
             var where = PadProtocol.Plain(r.Where);
-            Where.Text = PadProtocol.KeepWords(PadText.FolderFirst(where));
+            Where.Text = PadProtocol.KeepWords(PadText.KeepParts(PadText.FolderFirst(where)));
             WhereLabel.Visibility = WhereBd.Visibility = where.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
 
             // Codex: 훅이 세션 허용을 못 줌(근거 P-2) → Yes · No 둘 · 패드 8 도 Yes · 범위 글 없음
