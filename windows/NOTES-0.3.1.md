@@ -49,7 +49,8 @@
 ## 마무리 — 첫 사용 점검 반영 (2026-11-13 · ch57x-engineer)
 지시 진본: autographer `projects/ch57x/planning/PC앱-0.3.1-마무리-지시.md` · 점검 원문 정리 `planning/PC앱-0.3.1-팝업-첫사용점검.md`.
 - run 43371772518 (7ebd653) 실패 — Core 시험 `Stop_DisconnectsClients_AndRestartWorks` 가 Windows 에서 NameTaken(앞 run 은 통과 · 경쟁). 원인 · 고침은 아래 「파이프 서버 경쟁」.
-- CI 기다리는 중 run 43372115073 (커밋 9d3484f · workflow_dispatch)
+- run 43372115073 (9d3484f) 성공 — 렌더에서 줄바꿈 두 곳 어색(위치 「tmux / research:1.0」 · 「답할 수 / 있음」) → c492a68 에서 고침.
+- CI 기다리는 중 run 43372524318 (커밋 c492a68 · workflow_dispatch)
 
 ## 실기 미확인 (회장님 PC)
 - 팝업이 뜰 때 · 단추를 누를 때 **포커스를 안 뺏는지**(VS Code 커서 · 터미널 입력 그대로) — CI 는 `Window.IsActive` 만 봄(러너에 사람 창이 없음).
