@@ -46,6 +46,10 @@
 ## 검증
 (아래 CI 절에 결과)
 
+## 마무리 — 첫 사용 점검 반영 (2026-11-13 · ch57x-engineer)
+지시 진본: autographer `projects/ch57x/planning/PC앱-0.3.1-마무리-지시.md` · 점검 원문 정리 `planning/PC앱-0.3.1-팝업-첫사용점검.md`.
+- CI 기다리는 중 run 43371772518 (커밋 7ebd653 · workflow_dispatch)
+
 ## 실기 미확인 (회장님 PC)
 - 팝업이 뜰 때 · 단추를 누를 때 **포커스를 안 뺏는지**(VS Code 커서 · 터미널 입력 그대로) — CI 는 `Window.IsActive` 만 봄(러너에 사람 창이 없음).
 - **RegisterHotKey 가 VS Code 보다 먼저 F19~F21 을 먹는지(이중 답 없음)** — 문서는 "the system posts the WM_HOTKEY message to the message queue of the window with which the hot key is associated." 까지만 말하고 앞 창에 키가 안 가는지는 직접 말하지 않음(근거 미확보 · 확신도 중간). 실기에서 VS Code 출력 「패드 7」 기록이 안 생기는지로 확인.
