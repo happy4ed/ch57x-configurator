@@ -87,6 +87,9 @@ public class PadPermissionTests
         Assert.Equal("{\"type\":\"decision\",\"request_id\":\"r1\",\"decision\":\"allow\"}\n", PadProtocol.DecisionLine("r1", PadDecision.Allow));
         Assert.Equal("{\"type\":\"decision\",\"request_id\":\"r1\",\"decision\":\"allow_always\"}\n", PadProtocol.DecisionLine("r1", PadDecision.AllowAlways));
         Assert.Equal("{\"type\":\"decision\",\"request_id\":\"r1\",\"decision\":\"deny\"}\n", PadProtocol.DecisionLine("r1", PadDecision.Deny));
+        // 팝업 닫기 단추 「터미널에서 답」 = none (확장 0.3.2 가 결정 없음으로 바로 끝냄)
+        Assert.Equal("{\"type\":\"decision\",\"request_id\":\"r1\",\"decision\":\"none\"}\n", PadProtocol.DecisionLine("r1", PadDecision.None));
+        Assert.Throws<ArgumentOutOfRangeException>(() => PadProtocol.Wire((PadDecision)99));   // 모르는 값을 deny 로 바꾸지 않음
         // 따옴표 · 줄바꿈이 든 ID 도 JSON 으로 (한 줄을 넘지 않음)
         var odd = PadProtocol.DecisionLine("a\"b\nc", PadDecision.Deny);
         Assert.Single(odd.Split('\n', StringSplitOptions.RemoveEmptyEntries));
@@ -112,6 +115,89 @@ public class PadPermissionTests
         Assert.Equal("npm test --x", PadProtocol.KeepWords("npm test --x"));   // 한글 없으면 그대로
         Assert.Equal($"「bash」 · 터{J}미{J}널", PadProtocol.KeepWords("「bash」 · 터미널"));
         Assert.Equal("", PadProtocol.KeepWords(""));
+    }
+
+    // ───────────────────────── 화면 글 (첫 사용 점검 반영)
+
+    [Fact]
+    public void KeyDecision_CodexPad8IsYes()
+    {
+        Assert.Equal(PadDecision.Allow, PadProtocol.KeyDecision(PadCli.Codex, PadDecision.AllowAlways));
+        Assert.Equal(PadDecision.Allow, PadProtocol.KeyDecision(PadCli.Codex, PadDecision.Allow));
+        Assert.Equal(PadDecision.Deny, PadProtocol.KeyDecision(PadCli.Codex, PadDecision.Deny));
+        Assert.Equal(PadDecision.AllowAlways, PadProtocol.KeyDecision(PadCli.Claude, PadDecision.AllowAlways));
+    }
+
+    [Fact]
+    public void PadText_TimeLeft_WhatHappensAfter()
+    {
+        Assert.Equal("118초 뒤 팝업만 닫힘 · 터미널에서 답", PadText.TimeLeft(PadCli.Claude, 118));
+        Assert.Equal("58초 뒤 터미널 권한 창으로", PadText.TimeLeft(PadCli.Codex, 58));
+        Assert.Equal("뒤에 2건 더", PadText.Waiting(2));
+        Assert.Equal("", PadText.Waiting(0));
+    }
+
+    [Fact]
+    public void PadText_ToolNames_UnknownKept()
+    {
+        Assert.Equal("명령 실행", PadText.ToolLabel("Bash"));
+        Assert.Equal("파일 고치기", PadText.ToolLabel("Edit"));
+        Assert.Equal("파일 고치기", PadText.ToolLabel("MultiEdit"));
+        Assert.Equal("WebFetch", PadText.ToolLabel("WebFetch"));
+        Assert.Equal("mcp__x__y", PadText.ToolLabel("mcp__x__y"));
+        Assert.Equal("명령", PadText.SubjectLabel("Bash"));
+        Assert.Equal("고칠 파일", PadText.SubjectLabel("Edit"));
+        Assert.Equal("대상", PadText.SubjectLabel("WebFetch"));
+    }
+
+    [Fact]
+    public void PadText_FolderFirst()
+    {
+        Assert.Equal("ch57x-configurator · 터미널 「bash」 · tmux research:0.1", PadText.FolderFirst("터미널 「bash」 · tmux research:0.1 · ch57x-configurator"));
+        Assert.Equal("repo · Claude 확장 창", PadText.FolderFirst("Claude 확장 창 · repo"));
+        Assert.Equal("repo · 터미널 「a · b」", PadText.FolderFirst("터미널 「a · b」 · repo"));   // 터미널 이름 안의 「 · 」
+        Assert.Equal("터미널 「bash」 · tmux ci:0.0", PadText.FolderFirst("터미널 「bash」 · tmux ci:0.0"));   // 폴더 없음 — 그대로
+        Assert.Equal("repo", PadText.FolderFirst("repo"));
+        Assert.Equal("", PadText.FolderFirst(""));
+    }
+
+    [Fact]
+    public void PadText_ConnectorSegments_RejoinToSame()
+    {
+        Assert.Equal(new[] { "npm test -- --watch=false ", "&& git status --short" }, PadText.ConnectorSegments("npm test -- --watch=false && git status --short"));
+        Assert.Equal(new[] { "git log ", "| grep -i pad ", "|| true" }, PadText.ConnectorSegments("git log | grep -i pad || true"));
+        Assert.Equal(new[] { "cd web; ", "npm run build" }, PadText.ConnectorSegments("cd web; npm run build"));
+        Assert.Equal(new[] { "grep -E 'a|b' x" }, PadText.ConnectorSegments("grep -E 'a|b' x"));   // 공백 없는 기호는 안 끊음
+        Assert.Equal(new[] { "a &&" }, PadText.ConnectorSegments("a &&"));
+        foreach (var cmd in new[] { "a && b | c; d || e", " && x", "x ; y", "" })
+            Assert.Equal(cmd, string.Concat(PadText.ConnectorSegments(cmd)));
+    }
+
+    [Fact]
+    public void PadText_BreakAtConnectors_PrefersConnectorOverSpace()
+    {
+        Func<string, bool> fits28 = s => s.Length <= 28;
+        // 첫 CI 렌더: 「… && git」 / 「status --short」 로 끊김 → 「&&」 앞에서
+        Assert.Equal("npm test -- --watch=false\n&& git status --short", PadText.BreakAtConnectors("npm test -- --watch=false && git status --short", fits28));
+        Assert.Equal("cargo build --release", PadText.BreakAtConnectors("cargo build --release", fits28));   // 한 줄이면 그대로
+        Assert.Equal("git log --oneline -20\n| grep -i popup | head -5", PadText.BreakAtConnectors("git log --oneline -20 | grep -i popup | head -5", fits28));
+        Assert.Equal("cd windows;\nnpm run build", PadText.BreakAtConnectors("cd windows; npm run build", s => s.Length <= 12));
+        // 기호 없는 긴 명령은 그대로(화면이 공백에서 끊음)
+        Assert.Equal("echo aaaaaaaaaa bbbbbbbbbb cccccccccc", PadText.BreakAtConnectors("echo aaaaaaaaaa bbbbbbbbbb cccccccccc", fits28));
+    }
+
+    [Fact]
+    public void Queue_AnswerNone_SendsNoneToOwner()
+    {
+        var c = new Clock();
+        var q = new PermissionQueue(() => c.Now);
+        var o = new Owner();
+        q.Submit(Req("A"), o);
+        q.Submit(Req("B"), o);
+        c.Now += 1000;
+        Assert.Equal(PadAnswer.Answered, q.Answer("A", PadDecision.None));
+        Assert.Equal(new[] { ("A", PadDecision.None) }, o.Got);
+        Assert.Equal("B", q.Head!.Request.RequestId);   // 팝업은 다음 질문으로 (없으면 닫힘)
     }
 
     // ───────────────────────── 줄 나누기 (64KB)

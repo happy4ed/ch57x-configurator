@@ -1,6 +1,8 @@
 using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Interop;
+using System.Windows.Media;
 using Ch57x.Core;
 
 namespace Ch57x.App;
@@ -11,19 +13,24 @@ namespace Ch57x.App;
 /// </summary>
 public partial class PermissionPopup : Window
 {
-    public const string FreshNotice = "새 질문이 떴습니다 — 보고 다시 누르세요";
-    public const string KeysBusyNotice = "패드 키를 다른 프로그램이 씀 — 단추로 답하기";
+    /// <summary>바뀐 지 1초 안에 누름 (첫 사용 점검 중 10)</summary>
+    public const string FreshNotice = "방금 누른 키는 무시함 · 바뀐 질문 보고 다시 누르기";
+    /// <summary>F19~F21 을 다른 프로그램이 먼저 등록함 — 상태 문장(링크처럼 보이지 않게 · 점검 중 11)</summary>
+    public const string KeysBusyNotice = "패드 키를 다른 프로그램이 씀 — 마우스로만 답할 수 있음";
 
-    /// <summary>단추로 답함 (그때 그려져 있던 request_id 와 함께 — 그 사이 바뀌었으면 대기열이 버린다)</summary>
+    /// <summary>단추로 답함 (그때 그려져 있던 request_id 와 함께 — 그 사이 바뀌었으면 대기열이 버린다). 닫기 단추 = None(터미널에서 답)</summary>
     public event Action<string, PadDecision>? Clicked;
-    /// <summary>F19 · F20 · F21 (팝업이 떠 있는 동안만 등록)</summary>
+    /// <summary>F19 · F20 · F21 = 패드 7 · 8 · 9 (팝업이 떠 있는 동안만 등록) — 키 그대로(Allow · AllowAlways · Deny). Codex 의 8 을 Yes 로 바꾸는 것은 컨트롤러가.</summary>
     public event Action<PadDecision>? HotKey;
 
     private string? _id;
     private PadView? _view;
+    private PadRequest? _shown;
     private bool _keysBusy;
+    private string _rawCommand = "";
     private readonly System.Windows.Threading.DispatcherTimer _noticeTimer = new() { Interval = TimeSpan.FromSeconds(3) };
-    private string? _notice;
+    private readonly System.Windows.Threading.DispatcherTimer _flashTimer = new();
+    private readonly List<Border> _flashed = new();
 
     public PermissionPopup()
     {
@@ -31,85 +38,179 @@ public partial class PermissionPopup : Window
         BtnYes.Click += (_, _) => { if (_id != null) Clicked?.Invoke(_id, PadDecision.Allow); };
         BtnYesAll.Click += (_, _) => { if (_id != null) Clicked?.Invoke(_id, PadDecision.AllowAlways); };
         BtnNo.Click += (_, _) => { if (_id != null) Clicked?.Invoke(_id, PadDecision.Deny); };
-        _noticeTimer.Tick += (_, _) => { _noticeTimer.Stop(); _notice = null; UpdateHint(); };
+        BtnTerminal.Click += (_, _) => { if (_id != null) Clicked?.Invoke(_id, PadDecision.None); };
+        _noticeTimer.Tick += (_, _) => { _noticeTimer.Stop(); Notice.Text = ""; Notice.Visibility = Visibility.Collapsed; UpdateFoot(); };
+        _flashTimer.Tick += (_, _) => { _flashTimer.Stop(); Unflash(); };
         SizeChanged += (_, _) => Place();
+        // 명령 칸 폭을 안 뒤에 연결 기호 앞에서 줄을 나눈다(폭은 창 폭으로 정해짐 — 글이 바뀌어도 폭은 그대로라 되돌이 없음)
+        Command.SizeChanged += (_, e) => { if (e.WidthChanged) BreakCommand(); };
     }
 
-    /// <summary>시험 기록용 — 지금 그려진 남은 시간 칸 · 안내 줄 글</summary>
+    /// <summary>시험 기록용 — 지금 그려진 칸 글</summary>
     public string TimeText => TimeLeft.Text;
-    public string HintText => Hint.Text;
+    public string WaitText => Waiting.Visibility == Visibility.Visible ? Waiting.Text : "";
+    public string NoticeText => Notice.Visibility == Visibility.Visible ? Notice.Text : "";
+    public string CommandText => Command.Text;
+    /// <summary>보이는 답 단추 이름 (「Yes·Yes all·No」 · Codex 「Yes·No」)</summary>
+    public string ButtonsText => string.Join("·", new[] { (BtnYes, "Yes"), (BtnYesAll, "Yes all"), (BtnNo, "No") }.Where(b => b.Item1.Visibility == Visibility.Visible).Select(b => b.Item2));
 
-    /// <summary>시험 · 렌더용 — 단추 셋</summary>
-    public Button ButtonFor(PadDecision d) => d switch { PadDecision.Allow => BtnYes, PadDecision.AllowAlways => BtnYesAll, _ => BtnNo };
+    /// <summary>시험 · 렌더용 — 답 단추 · 닫기(None)</summary>
+    public Button ButtonFor(PadDecision d) => d switch
+    {
+        PadDecision.Allow => BtnYes,
+        PadDecision.AllowAlways => BtnYesAll,
+        PadDecision.Deny => BtnNo,
+        _ => BtnTerminal,
+    };
 
     /// <summary>위치: bottom-right(기본) · top-right</summary>
     public string Corner { get; set; } = PadPopupController.CornerBottomRight;
 
-    /// <summary>보이는 질문을 그린다 (같은 질문이면 남은 시간 · 대기 수만)</summary>
+    /// <summary>보이는 질문을 그린다 (같은 질문이면 남은 시간 · 대기 수만). 앞에 다른 질문이 떠 있었으면 바뀐 칸을 잠깐 강조.</summary>
     public void ShowView(PadView v, long now)
     {
         var r = v.Request;
         if (r.RequestId != _id)
         {
+            var before = _shown;
             _id = r.RequestId;
-            _notice = null;
+            _shown = r;
+            Notice.Text = "";
+            Notice.Visibility = Visibility.Collapsed;
             _noticeTimer.Stop();
+            bool codex = r.Cli == PadCli.Codex;
             Heading.Text = $"{PadProtocol.CliName(r.Cli)} 권한 질문";
-            var cmd = PadProtocol.Plain(r.Summary);
-            Command.Text = cmd;
-            CommandBox.Visibility = cmd.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
             var tool = PadProtocol.Plain(r.Tool);
-            Tool.Text = tool.Length > 0 ? PadProtocol.KeepWords(tool) : "(이름 없음)";
+            Tool.Text = tool.Length > 0 ? PadProtocol.KeepWords(PadText.ToolLabel(tool)) : "(이름 없음)";
+            CommandLabel.Text = PadText.SubjectLabel(tool);
+            _rawCommand = PadProtocol.Plain(r.Summary);
+            CommandLabel.Visibility = CommandBox.Visibility = _rawCommand.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+            BreakCommand();
+
             var where = PadProtocol.Plain(r.Where);
-            Where.Text = PadProtocol.KeepWords(where);
-            WhereLabel.Visibility = Where.Visibility = where.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
-            // Codex 는 세션 허용이 없어 Yes all = 이번만 허용 (훅이 allow 로 바꿈 — 근거 P-2)
-            var yesAll = r.Cli == PadCli.Codex ? (r.YesAll.Length > 0 ? PadProtocol.Plain(r.YesAll) : "Codex 는 이번만 허용") : PadProtocol.Plain(r.YesAll);
-            YesAll.Text = PadProtocol.KeepWords(yesAll);
-            YesAllLabel.Visibility = YesAll.Visibility = yesAll.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+            Where.Text = PadProtocol.KeepWords(PadText.FolderFirst(where));
+            WhereLabel.Visibility = WhereBd.Visibility = where.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+
+            // Codex: 훅이 세션 허용을 못 줌(근거 P-2) → Yes · No 둘 · 패드 8 도 Yes · 범위 글 없음
+            BtnYesAll.Visibility = codex ? Visibility.Collapsed : Visibility.Visible;
+            Buttons.Columns = codex ? 2 : 3;
+            KeyYes.Text = codex ? "7 · 8" : "7";
+            System.Windows.Automation.AutomationProperties.SetName(BtnYes, codex ? "Yes, 패드 7 · 8" : "Yes, 패드 7");
+            var yesAll = codex ? "" : PadProtocol.Plain(r.YesAll);
+            YesAllNote.Text = yesAll.Length > 0 ? PadProtocol.KeepWords($"Yes all 누르면 {yesAll}") : "";
+            YesAllBd.Visibility = yesAll.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+            UpdateFoot();
+
+            // 바뀐 칸 잠깐 강조 (앞 질문이 보이던 채로 다음 질문으로 넘어간 때만)
+            Unflash();
+            if (before != null)
+            {
+                var changed = new List<Border>();
+                if (before.Cli != r.Cli) changed.Add(HeadingBd);
+                if (before.Tool != r.Tool) changed.Add(ToolBd);
+                if (before.Summary != r.Summary) changed.Add(CommandBox);
+                if (before.Where != r.Where) changed.Add(WhereBd);
+                if (!codex && before.YesAll != r.YesAll) changed.Add(YesAllBd);
+                Flash(changed, PermissionQueue.KeyGuardMs + 500);
+            }
         }
         _view = v;
         UpdateTime(now);
-        UpdateHint();
     }
 
     public void UpdateTime(long now)
     {
         if (_view == null) return;
-        TimeLeft.Text = _view.Waiting > 0 ? $"{_view.SecondsLeft(now)}초 · 대기 {_view.Waiting}건" : $"{_view.SecondsLeft(now)}초";
+        TimeLeft.Text = PadProtocol.KeepWords(PadText.TimeLeft(_view.Request.Cli, _view.SecondsLeft(now)));
+        var w = PadText.Waiting(_view.Waiting);
+        Waiting.Text = PadProtocol.KeepWords(w);
+        WaitingLabel.Visibility = Waiting.Visibility = w.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     }
 
-    /// <summary>알림 한 줄 (3초) — 패드 키 안내 자리에</summary>
-    public void Notice(string text)
+    /// <summary>알림 한 줄 (3초 · 단추 바로 아래) — 그동안 바뀐 칸 강조도 같이 둔다</summary>
+    public void ShowNotice(string text)
     {
-        _notice = text;
+        Notice.Text = PadProtocol.KeepWords(text);
+        Notice.Visibility = Visibility.Visible;
         _noticeTimer.Stop();
         _noticeTimer.Start();
-        UpdateHint();
+        if (_flashed.Count > 0) { _flashTimer.Stop(); _flashTimer.Interval = _noticeTimer.Interval; _flashTimer.Start(); }
+        UpdateFoot();
     }
 
-    /// <summary>패드 키를 못 잡음(다른 프로그램이 이미 등록) — 단추로만</summary>
+    /// <summary>패드 키를 못 잡음(다른 프로그램이 이미 등록) — 마우스로만 · 단추 안 숫자도 숨김</summary>
     public bool KeysBusy
     {
         get => _keysBusy;
-        set { _keysBusy = value; UpdateHint(); }
+        set
+        {
+            _keysBusy = value;
+            KeysNote.Text = value ? PadProtocol.KeepWords(KeysBusyNotice) : "";
+            KeysNote.Visibility = value ? Visibility.Visible : Visibility.Collapsed;
+            var keys = value ? Visibility.Collapsed : Visibility.Visible;
+            KeyYes.Visibility = KeyYesAll.Visibility = KeyNo.Visibility = keys;
+            UpdateFoot();
+        }
     }
 
-    private void UpdateHint()
-    {
-        if (_notice != null) { Hint.Text = _notice; Hint.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "T1"); Hint.FontWeight = FontWeights.SemiBold; return; }
-        Hint.FontWeight = FontWeights.Normal;
-        Hint.SetResourceReference(System.Windows.Controls.TextBlock.ForegroundProperty, "T2");
-        Hint.Text = _keysBusy ? KeysBusyNotice : "패드 7 Yes · 8 Yes all · 9 No";
-    }
+    private void UpdateFoot() =>
+        Foot.Visibility = Notice.Visibility == Visibility.Visible || YesAllBd.Visibility == Visibility.Visible || KeysNote.Visibility == Visibility.Visible
+            ? Visibility.Visible : Visibility.Collapsed;
 
     public void Forget()
     {
         _id = null;
         _view = null;
-        _notice = null;
+        _shown = null;
+        Notice.Text = "";
+        Notice.Visibility = Visibility.Collapsed;
         _noticeTimer.Stop();
+        _flashTimer.Stop();
+        Unflash();
     }
+
+    // ───────────────────────── 명령 칸 줄바꿈 (공백보다 && · || · | 앞 · ; 뒤 먼저 — 점검 하 16)
+
+    private void BreakCommand()
+    {
+        double avail = Command.ActualWidth;
+        if (avail <= 0 || _rawCommand.Length == 0) { Command.Text = _rawCommand; return; }
+        var tf = new Typeface(Command.FontFamily, Command.FontStyle, Command.FontWeight, Command.FontStretch);
+        double ppd = VisualTreeHelper.GetDpi(Command).PixelsPerDip;
+        bool Fits(string s) =>
+            new FormattedText(s, System.Globalization.CultureInfo.CurrentUICulture, System.Windows.FlowDirection.LeftToRight, tf, Command.FontSize, Brushes.Black, ppd)
+                .WidthIncludingTrailingWhitespace <= avail - 1;
+        var text = PadText.BreakAtConnectors(_rawCommand, Fits);
+        if (Command.Text != text) Command.Text = text;
+    }
+
+    // ───────────────────────── 바뀐 칸 강조 (강조색 옅게 · 시간이 지나면 원래 배경)
+
+    private void Flash(List<Border> cells, int ms)
+    {
+        if (cells.Count == 0) return;
+        var accent = TryFindResource("Accent") as SolidColorBrush;
+        var tint = new SolidColorBrush(accent?.Color ?? Colors.SteelBlue) { Opacity = 0.22 };
+        tint.Freeze();
+        foreach (var b in cells) { b.Background = tint; _flashed.Add(b); }
+        _flashTimer.Stop();
+        _flashTimer.Interval = TimeSpan.FromMilliseconds(ms);
+        _flashTimer.Start();
+    }
+
+    private void Unflash()
+    {
+        foreach (var b in _flashed)
+        {
+            if (b == CommandBox) b.SetResourceReference(Border.BackgroundProperty, "AltFill");
+            else b.ClearValue(Border.BackgroundProperty);
+        }
+        _flashed.Clear();
+    }
+
+    /// <summary>렌더용 — 바뀐 칸 강조가 있나</summary>
+    public int FlashedCount => _flashed.Count;
 
     // ───────────────────────── 자리 (작업 영역 오른쪽 아래 · 위 — 그림자 여백까지 창 크기)
 

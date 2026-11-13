@@ -8,24 +8,29 @@
         FontFamily="{DynamicResource AppFont}" FontSize="14" Foreground="{DynamicResource T1}" UseLayoutRounding="True">
     <!--
       권한 질문 팝업 (PC 앱 0.3.1 · 권한팝업-설계.md 4)). 포커스를 뺏지 않는다: ShowActivated=False + WS_EX_NOACTIVATE(코드) · 단추도 Focusable=False.
+      Enter 가 Yes 로 가지 않음: 창이 활성 · 포커스가 되지 않고(위) 어느 단추도 IsDefault 가 아니다(Yes 의 파랑은 모양만).
       모양 = 메뉴(ContextMenu)와 같은 떠 있는 표면: Bg4 · FlyoutStroke 1 · 모서리 8 · 그림자(BlurRadius 16 · 아래 4) — 바깥 여백 12,8,12,16 은 그림자 자리.
-      바깥 글(명령 · 도구 · 위치 · Yes all 설명)은 모두 TextBlock.Text 평문 — 링크 · 마크업 · 밑줄 바로 가기 해석 없음.
+      바깥 글(명령 · 도구 · 위치 · Yes all 범위)은 모두 TextBlock.Text 평문 — 링크 · 마크업 · 밑줄 바로 가기 해석 없음.
+      0.3.1 첫 사용 점검 반영: 닫기 단추 = 터미널에서 답(none) · Codex 는 Yes · No 둘 · 단추 안 패드 숫자 · Yes all 범위는 단추 아래 작은 글 ·
+      남은 시간 뒤 결과 · 대기는 따로 한 줄(제목 영역에는 건수를 넣지 않음) · 바뀐 칸 잠깐 강조.
     -->
     <Border x:Name="Card" Margin="12,8,12,16" Background="{DynamicResource Bg4}" BorderBrush="{DynamicResource FlyoutStroke}" BorderThickness="1" CornerRadius="8" Padding="16">
         <Border.Effect>
             <DropShadowEffect BlurRadius="16" ShadowDepth="4" Direction="270" Color="Black" Opacity="0.18"/>
         </Border.Effect>
         <StackPanel>
-            <StackPanel Orientation="Horizontal">
+            <!-- 제목 줄: 아이콘 · 제목 · 닫기(= 터미널에서 답). 닫기 단추 32 는 위아래 -6 으로 제목 줄 높이를 늘리지 않는다 -->
+            <DockPanel>
+                <Button x:Name="BtnTerminal" DockPanel.Dock="Right" Style="{StaticResource IconButton}" Tag="x" Focusable="False"
+                        Margin="8,-6,-8,-6" VerticalAlignment="Center"
+                        ToolTip="터미널에서 답" AutomationProperties.Name="터미널에서 답 (팝업 닫기)"/>
                 <Image Source="{DynamicResource AppIcon16}" Width="16" Height="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                <TextBlock x:Name="Heading" Style="{StaticResource Strong}" Text="Claude Code 권한 질문"/>
-            </StackPanel>
+                <Border x:Name="HeadingBd" CornerRadius="4" Margin="-4,0,0,0" Padding="4,0,4,0" HorizontalAlignment="Left">
+                    <TextBlock x:Name="Heading" Style="{StaticResource Strong}" Text="Claude Code 권한 질문"/>
+                </Border>
+            </DockPanel>
 
-            <!-- 명령 앞 120자 — 고정폭 글꼴 · 줄바꿈 -->
-            <Border x:Name="CommandBox" Margin="0,12,0,0" Background="{DynamicResource AltFill}" BorderBrush="{DynamicResource CardStroke}" BorderThickness="1" CornerRadius="4" Padding="8,6,8,6">
-                <TextBlock x:Name="Command" FontFamily="{DynamicResource MonoFont}" TextWrapping="Wrap" LineHeight="20" LineStackingStrategy="BlockLineHeight"/>
-            </Border>
-
+            <!-- 줄 이름 | 값. 값 칸은 바뀌면 잠깐 강조(배경)하려고 Border 로 감쌈 — 왼쪽 -4 여백으로 글 시작 자리는 그대로 -->
             <Grid x:Name="Facts" Margin="0,12,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -36,26 +41,61 @@
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
                 </Grid.RowDefinitions>
                 <TextBlock Grid.Row="0" Text="도구" Foreground="{DynamicResource T2}" Margin="0,0,12,4"/>
-                <TextBlock Grid.Row="0" Grid.Column="1" x:Name="Tool" TextWrapping="Wrap" Margin="0,0,0,4"/>
-                <TextBlock Grid.Row="1" x:Name="WhereLabel" Text="위치" Foreground="{DynamicResource T2}" Margin="0,0,12,4"/>
-                <TextBlock Grid.Row="1" Grid.Column="1" x:Name="Where" TextWrapping="Wrap" Margin="0,0,0,4"/>
-                <TextBlock Grid.Row="2" x:Name="YesAllLabel" Text="Yes all 이면" Foreground="{DynamicResource T2}" Margin="0,0,12,4"/>
-                <TextBlock Grid.Row="2" Grid.Column="1" x:Name="YesAll" TextWrapping="Wrap" Margin="0,0,0,4"/>
-                <TextBlock Grid.Row="3" Text="남은 시간" Foreground="{DynamicResource T2}" Margin="0,0,12,0"/>
-                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="TimeLeft"/>
+                <Border Grid.Row="0" Grid.Column="1" x:Name="ToolBd" CornerRadius="4" Margin="-4,0,0,4" Padding="4,0,4,0">
+                    <TextBlock x:Name="Tool" TextWrapping="Wrap"/>
+                </Border>
+
+                <!-- 명령 앞 120자 — 고정폭 글꼴 · 연결 기호(&& · | · ;) 앞에서 먼저 줄바꿈(코드) -->
+                <TextBlock Grid.Row="1" x:Name="CommandLabel" Text="명령" Foreground="{DynamicResource T2}" Margin="0,7,12,4" VerticalAlignment="Top"/>
+                <Border Grid.Row="1" Grid.Column="1" x:Name="CommandBox" Margin="0,0,0,4" Background="{DynamicResource AltFill}" BorderBrush="{DynamicResource CardStroke}" BorderThickness="1" CornerRadius="4" Padding="8,6,8,6">
+                    <TextBlock x:Name="Command" FontFamily="{DynamicResource MonoFont}" TextWrapping="Wrap" LineHeight="20" LineStackingStrategy="BlockLineHeight"/>
+                </Border>
+
+                <TextBlock Grid.Row="2" x:Name="WhereLabel" Text="위치" Foreground="{DynamicResource T2}" Margin="0,0,12,4"/>
+                <Border Grid.Row="2" Grid.Column="1" x:Name="WhereBd" CornerRadius="4" Margin="-4,0,0,4" Padding="4,0,4,0">
+                    <TextBlock x:Name="Where" TextWrapping="Wrap"/>
+                </Border>
+
+                <TextBlock Grid.Row="3" x:Name="WaitingLabel" Text="대기" Foreground="{DynamicResource T2}" Margin="0,0,12,4"/>
+                <TextBlock Grid.Row="3" Grid.Column="1" x:Name="Waiting" TextWrapping="Wrap" Margin="0,0,0,4"/>
+
+                <TextBlock Grid.Row="4" Text="남은 시간" Foreground="{DynamicResource T2}" Margin="0,0,12,0"/>
+                <TextBlock Grid.Row="4" Grid.Column="1" x:Name="TimeLeft" TextWrapping="Wrap"/>
             </Grid>
 
-            <!-- 같은 폭 단추 셋 (사이 8) · 주 동작 하나만 강조 -->
-            <UniformGrid Columns="3" Margin="0,16,0,0">
-                <Button x:Name="BtnYes" Style="{StaticResource AccentButton}" Content="Yes" Focusable="False" Margin="0,0,4,0" AutomationProperties.Name="Yes, 패드 7"/>
-                <Button x:Name="BtnYesAll" Content="Yes all" Focusable="False" Margin="4,0,4,0" AutomationProperties.Name="Yes all, 패드 8"/>
-                <Button x:Name="BtnNo" Content="No" Focusable="False" Margin="4,0,0,0" AutomationProperties.Name="No, 패드 9"/>
+            <!-- 같은 폭 단추 (사이 8) · 주 동작 하나만 강조 · 단추 안 작은 숫자 = 패드 키. Codex 는 Yes · No 둘(Columns 2 · Yes all 접음) -->
+            <UniformGrid x:Name="Buttons" Columns="3" Margin="0,16,0,0">
+                <Button x:Name="BtnYes" Style="{StaticResource AccentButton}" Focusable="False" Margin="0,0,4,0" AutomationProperties.Name="Yes, 패드 7">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Yes" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="KeyYes" Text="7" FontSize="13" Opacity="0.72" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button x:Name="BtnYesAll" Focusable="False" Margin="4,0,4,0" AutomationProperties.Name="Yes all, 패드 8">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Yes all" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="KeyYesAll" Text="8" FontSize="13" Opacity="0.72" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+                <Button x:Name="BtnNo" Focusable="False" Margin="4,0,0,0" AutomationProperties.Name="No, 패드 9">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="No" VerticalAlignment="Center"/>
+                        <TextBlock x:Name="KeyNo" Text="9" FontSize="13" Opacity="0.72" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
             </UniformGrid>
 
-            <!-- 패드 키 안내 · 알림 한 줄(같은 자리 — 줄이 늘지 않게) -->
-            <TextBlock x:Name="Hint" Margin="0,12,0,0" Foreground="{DynamicResource T2}" TextTrimming="CharacterEllipsis" Text="패드 7 Yes · 8 Yes all · 9 No"/>
+            <!-- 단추 아래: 알림(3초) · Yes all 범위(Claude) · 패드 키 상태 — 보이는 것만 -->
+            <StackPanel x:Name="Foot" Margin="0,4,0,0">
+                <TextBlock x:Name="Notice" Margin="0,8,0,0" FontWeight="SemiBold" TextWrapping="Wrap" Visibility="Collapsed"/>
+                <Border x:Name="YesAllBd" CornerRadius="4" Margin="-4,8,0,0" Padding="4,0,4,0">
+                    <TextBlock x:Name="YesAllNote" FontSize="13" Foreground="{DynamicResource T2}" TextWrapping="Wrap"/>
+                </Border>
+                <TextBlock x:Name="KeysNote" Margin="0,8,0,0" FontSize="13" Foreground="{DynamicResource T2}" TextWrapping="Wrap" Visibility="Collapsed"/>
+            </StackPanel>
         </StackPanel>
     </Border>
 </Window>

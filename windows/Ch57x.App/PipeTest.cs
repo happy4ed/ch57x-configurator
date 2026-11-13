@@ -11,7 +11,7 @@ namespace Ch57x.App;
 /// 파이프 왕복 시험 모드 — <c>CH57x 설정기.exe --pipe-test &lt;폴더&gt;</c> (CI 전용).
 /// 진짜 파이프 서버 · 대기열 · 팝업 · 전역 키를 그대로 띄우고, 질문의 tool 칸에 적힌 각본대로 조작한다:
 ///   test:key:F19@1200      1200ms 뒤 F19 를 진짜 키 입력으로(SendInput) → RegisterHotKey 로 받는지
-///   test:click:deny@1200   1200ms 뒤 No 단추를 누름(UI 자동화 Invoke)
+///   test:click:deny@1200   1200ms 뒤 No 단추를 누름(UI 자동화 Invoke) — allow · always · deny · none(닫기 = 터미널에서 답)
 ///   test:off@300,on@2500   300ms 뒤 받기 끔 · 2500ms 뒤 켬
 ///   test:wait              아무것도 안 함(close · 시간 초과 · 끊김 시험)
 ///   test:quit@100          끝냄
@@ -52,7 +52,7 @@ public static class PipeTest
     private static void Script(PadPopupController pad, PadView v, PermissionPopup popup, Application app)
     {
         var tool = v.Request.Tool;
-        Note($"보임 {v.Request.RequestId} tool={tool} 대기={v.Waiting} 키={(popup.KeysRegistered ? "잡음" : "못 잡음")} 포커스={(popup.IsActive ? "팝업이 가져감" : "안 가져감")}");
+        Note($"보임 {v.Request.RequestId} tool={tool} 대기={v.Waiting} 단추={popup.ButtonsText} 키={(popup.KeysRegistered ? "잡음" : "못 잡음")} 포커스={(popup.IsActive ? "팝업이 가져감" : "안 가져감")}");
         if (!tool.StartsWith("test:", StringComparison.Ordinal)) return;
         var id = v.Request.RequestId;
         foreach (var step in tool[5..].Split(',', StringSplitOptions.RemoveEmptyEntries))
@@ -73,7 +73,7 @@ public static class PipeTest
     private static void Do(PadPopupController pad, PermissionPopup popup, Application app, string id, string what)
     {
         var parts = what.Split(':');
-        Note($"{id} 각본 {what} · 남은 시간 칸 「{popup.TimeText}」 · 안내 「{popup.HintText}」 · 보임={popup.IsVisible}");
+        Note($"{id} 각본 {what} · 남은 시간 칸 「{Shown(popup.TimeText)}」 · 대기 칸 「{Shown(popup.WaitText)}」 · 알림 「{Shown(popup.NoticeText)}」 · 보임={popup.IsVisible}");
         switch (parts[0])
         {
             case "key":
@@ -82,7 +82,7 @@ public static class PipeTest
                 Note($"{id} {parts.ElementAtOrDefault(1)} 보냄(SendInput={sent}{(sent == 0 ? $" · Win32 {Marshal.GetLastWin32Error()}" : "")})");
                 break;
             case "click":
-                var d = parts.ElementAtOrDefault(1) switch { "allow" => PadDecision.Allow, "always" => PadDecision.AllowAlways, _ => PadDecision.Deny };
+                var d = parts.ElementAtOrDefault(1) switch { "allow" => PadDecision.Allow, "always" => PadDecision.AllowAlways, "none" => PadDecision.None, _ => PadDecision.Deny };
                 var btn = popup.ButtonFor(d);
                 ((IInvokeProvider)new ButtonAutomationPeer(btn).GetPattern(PatternInterface.Invoke)).Invoke();
                 Note($"{id} 단추 {PadPopupController.Label(d)} 누름");
@@ -104,6 +104,9 @@ public static class PipeTest
                 break;
         }
     }
+
+    /// <summary>기록용 — 화면 글의 U+2060(낱말 잇기)을 빼고 적는다(node 시험이 글자로 대조)</summary>
+    private static string Shown(string s) => s.Replace("\u2060", "");
 
     // ───────────────────────── 진짜 키 입력 (SendInput)
 

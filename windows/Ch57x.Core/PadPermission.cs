@@ -7,7 +7,8 @@ namespace Ch57x.Core;
 // 약속 진본: autographer projects/ch57x/vscode-agent-pad/src/pcPipe.ts 머리 주석 · permission.ts parseRequest · NOTES.md 「PC 앱 0.3.0 에 넘길 것」.
 //
 //   확장 → 앱  {"type":"permission","v":1,request_id,cli,tool,summary,where,timeout_ms,session,yes_all,deadline}
-//   앱 → 확장  {"type":"decision","request_id","decision":"allow|allow_always|deny"}   (none 은 보내지 않음 — 시간 초과면 답 안 함)
+//   앱 → 확장  {"type":"decision","request_id","decision":"allow|allow_always|deny|none"}
+//              none = 팝업 닫기 단추 「터미널에서 답」 때만(확장 0.3.2 가 결정 없음으로 바로 끝냄 → 훅 빈 출력 → 터미널 권한 창). 시간 초과면 답 안 함.
 //   확장 → 앱  {"type":"close","request_id"}
 //
 //   - 한 번에 한 건(가장 먼저 온 것)만 보인다. 나머지는 줄 선다. 답은 request_id 로만.
@@ -16,8 +17,8 @@ namespace Ch57x.Core;
 
 public enum PadCli { Claude, Codex }
 
-/// <summary>Yes · Yes all · No (패드 7 · 8 · 9 = F19 · F20 · F21)</summary>
-public enum PadDecision { Allow, AllowAlways, Deny }
+/// <summary>Yes · Yes all · No (패드 7 · 8 · 9 = F19 · F20 · F21) · None = 터미널에서 답(팝업 닫기 단추 — 결정 없음)</summary>
+public enum PadDecision { Allow, AllowAlways, Deny, None }
 
 /// <summary>받은 권한 질문 (모양을 맞추고 길이를 자른 뒤). Deadline = 끝나는 시각(유닉스 ms · 이 PC 시계)</summary>
 public sealed record PadRequest(string RequestId, PadCli Cli, string Tool, string Summary, string Where, string Session, string YesAll, int TimeoutMs, long Deadline);
@@ -44,12 +45,22 @@ public static class PadProtocol
 
     public static long NowMs() => DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
+    /// <summary>답 낱말 — 모르는 값을 deny 나 다른 답으로 바꾸지 않는다(던짐)</summary>
     public static string Wire(PadDecision d) => d switch
     {
         PadDecision.Allow => "allow",
         PadDecision.AllowAlways => "allow_always",
-        _ => "deny",
+        PadDecision.Deny => "deny",
+        PadDecision.None => "none",
+        _ => throw new ArgumentOutOfRangeException(nameof(d)),
     };
+
+    /// <summary>
+    /// 패드 키(F19 · F20 · F21 = 7 · 8 · 9) → 답. Codex 는 훅이 세션 허용을 못 줘(근거 P-2 · 훅 outputFor 가 allow_always 를 allow 로)
+    /// 「Yes all」 단추가 없고 패드 8 도 Yes(allow).
+    /// </summary>
+    public static PadDecision KeyDecision(PadCli cli, PadDecision key) =>
+        cli == PadCli.Codex && key == PadDecision.AllowAlways ? PadDecision.Allow : key;
 
     public static string CliName(PadCli c) => c == PadCli.Codex ? "Codex" : "Claude Code";
 

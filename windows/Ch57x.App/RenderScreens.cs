@@ -108,12 +108,12 @@ public static class RenderScreens
                     return Show(a);
                 });
                 Shot("dlg-error", () => Show(Dialogs.BuildError(null, Terms.Upload, new System.IO.IOException("장치가 응답하지 않음 (HID 쓰기 시간 초과)"), canRetry: true, device: true)));
-                // 0.3.1 권한 질문 팝업 — Claude · Codex · 대기 2건 · 패드 키를 못 잡음 · 1초 안 누름
+                // 0.3.1 권한 질문 팝업 — Claude · Codex · 대기 2건 · 패드 키를 못 잡음(파이프 명령) · 1초 안 누름(앞 질문 → 다음 질문 · 바뀐 칸 강조)
                 Shot("perm-claude", () => PopupShot(SamplePad.Claude, 0));
                 Shot("perm-codex", () => PopupShot(SamplePad.Codex, 0));
                 Shot("perm-queue", () => PopupShot(SamplePad.ClaudeEdit, 2));
-                Shot("perm-busy", () => PopupShot(SamplePad.Claude, 0, p => p.KeysBusy = true));
-                Shot("perm-fresh", () => PopupShot(SamplePad.Claude, 1, p => p.Notice(PermissionPopup.FreshNotice)));
+                Shot("perm-busy", () => PopupShot(SamplePad.ClaudePipe, 0, p => p.KeysBusy = true));
+                Shot("perm-fresh", () => PopupShot(SamplePad.ClaudeNext, 1, p => p.ShowNotice(PermissionPopup.FreshNotice), before: SamplePad.Claude));
             }
             ctrl.Dispose();
         }
@@ -274,16 +274,21 @@ public static class RenderScreens
         finally { hud.Close(); }
     }
 
-    /// <summary>권한 질문 팝업 — 바탕 없는 창(그림자 여백 포함)이라 HUD 처럼 책상 색 위에 그린다. 남은 시간 118초로 고정.</summary>
-    private static BitmapSource PopupShot(PadRequest r, int waiting, Action<PermissionPopup>? tweak = null)
+    /// <summary>
+    /// 권한 질문 팝업 — 바탕 없는 창(그림자 여백 포함)이라 HUD 처럼 책상 색 위에 그린다. 남은 시간 = 받은 시간 - 2초(Claude 118 · Codex 58).
+    /// before = 그 앞에 떠 있던 질문(바뀐 칸 강조를 보려고 먼저 그린 뒤 넘어감).
+    /// </summary>
+    private static BitmapSource PopupShot(PadRequest r, int waiting, Action<PermissionPopup>? tweak = null, PadRequest? before = null)
     {
         var p = new PermissionPopup();
         Place(p);
-        long now = r.Deadline - 118_000;
+        long now = r.Deadline - (r.TimeoutMs - 2000);
+        if (before != null) p.ShowView(new PadView(before, waiting + 1, before.Deadline, now), now);
         p.ShowView(new PadView(r, waiting, r.Deadline, now), now);
         tweak?.Invoke(p);
         p.Show();
         Pump();
+        L($"  팝업 {r.Cli} · 단추 {p.ButtonsText} · 명령 칸 「{p.CommandText.Replace("\n", " ⏎ ")}」 · 강조 칸 {p.FlashedCount} · 크기 {p.ActualWidth}×{p.ActualHeight}");
         try
         {
             var img = Render(Root(p));
@@ -312,14 +317,24 @@ public static class RenderScreens
 }
 
 /// <summary>
-/// 권한 질문 견본 — 훅 · 서버 쪽 확장이 실제로 만드는 모양(where = 「터미널 「이름」 · tmux 세션:창.칸 · 폴더」 · yes_all = NOTES 하5 예).
+/// 권한 질문 견본 — 훅 · 서버 쪽 확장이 실제로 만드는 모양(where = 서버 쪽 확장 whereOf 「터미널 「이름」 · tmux 세션:창.칸 · 폴더」 ·
+/// yes_all = 훅 0.3.2 rulesSaid 꼴 「이 저장소에서(내 로컬 설정) 「npm test」 로 시작하는 명령은 다시 묻지 않음」 · changeOf 「이 세션 동안 …」).
 /// 명령 · 폴더 이름은 견본(근거 미확보 — 회장님 실제 명령 아님). Codex 의 도구 이름도 견본.
 /// </summary>
 internal static class SamplePad
 {
     private const long At = 1_800_000_000_000;
     public static readonly PadRequest Claude = new("3f2a9c1e-7b4d-4e0a-9d61-2c8f5b7a1e90", PadCli.Claude, "Bash",
-        "npm test -- --watch=false && git status --short", "터미널 「bash」 · tmux research:0.1 · ch57x-configurator", "s1", "저장소 로컬 설정에 Bash 허용 규칙 저장", 120000, At);
+        "npm test -- --watch=false && git status --short", "터미널 「bash」 · tmux research:0.1 · ch57x-configurator", "s1",
+        "이 저장소에서(내 로컬 설정) 「npm test」 로 시작하는 명령은 다시 묻지 않음", 120000, At);
+    /// <summary>같은 칸에서 다음 질문 — 명령 · 범위만 바뀜(바뀐 칸 강조 견본)</summary>
+    public static readonly PadRequest ClaudeNext = new("7d3e1f20-5a6b-4c7d-8e9f-0a1b2c3d4e5f", PadCli.Claude, "Bash",
+        "git push origin pc-0.3.1", "터미널 「bash」 · tmux research:0.1 · ch57x-configurator", "s1",
+        "이 저장소에서(내 로컬 설정) 「git push」 로 시작하는 명령은 다시 묻지 않음", 120000, At);
+    /// <summary>파이프 · 세미콜론이 든 긴 명령 — 연결 기호 앞에서 줄바꿈 견본</summary>
+    public static readonly PadRequest ClaudePipe = new("1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d", PadCli.Claude, "Bash",
+        "cd windows; git log --oneline -20 | grep -i popup | head -5", "터미널 「pwsh」 · ch57x-configurator", "s4",
+        "이 세션 동안 「git log」 로 시작하는 명령은 다시 묻지 않음", 120000, At);
     public static readonly PadRequest Codex = new("8c1d2e3f-4a5b-4c6d-8e7f-901a2b3c4d5e", PadCli.Codex, "Bash",
         "cargo build --release", "터미널 「bash」 · tmux research:1.0 · server-api", "s2", "Codex 는 이번만 허용", 60000, At);
     public static readonly PadRequest ClaudeEdit = new("5e6f7a8b-9c0d-4e1f-a2b3-c4d5e6f7a8b9", PadCli.Claude, "Edit",

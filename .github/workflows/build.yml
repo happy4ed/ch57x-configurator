@@ -94,7 +94,7 @@ jobs:
           if-no-files-found: warn
 
       # ──────── 0.3.1 권한 질문 파이프 왕복 — 앱을 --pipe-test 로 띄우고(진짜 파이프 서버 · 팝업 · RegisterHotKey),
-      # node 로 에이전트 패드 확장 pcPipe.ts 와 같은 방식(net.connect · 줄 JSON)으로 붙어 각본 16가지를 본다.
+      # node 로 에이전트 패드 확장 pcPipe.ts 와 같은 방식(net.connect · 줄 JSON)으로 붙어 각본 17가지를 본다(0.3.1 마무리: 닫기 단추 = none 추가).
       - name: Pad pipe round trip
         if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
         timeout-minutes: 5

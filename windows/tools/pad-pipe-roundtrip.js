@@ -160,7 +160,8 @@ const base = (over = {}) => ({
   where: '터미널 「bash」 · tmux ci:0.0 · repo',
   timeout_ms: 120000,
   session: 's' + seq,
-  yes_all: '저장소 로컬 설정에 Bash 허용 규칙 저장',
+  // 훅 0.3.2 rulesSaid 꼴 (60자 상한 규칙 내용)
+  yes_all: '이 저장소에서(내 로컬 설정) 「npm test」 로 시작하는 명령은 다시 묻지 않음',
   ...over,
 });
 
@@ -202,7 +203,7 @@ async function runAll(logPath) {
     if (!s) return { ok: false, detail: '못 붙음' };
     const d = await race(s.answer, 5000);
     s.close();
-    const ignored = log().includes(`${r.request_id.slice(0, 8)} — 바뀐 지 1초 안이라 패드 No 무시`);
+    const ignored = log().includes(`${r.request_id.slice(0, 8)} — 바뀐 지 1초 안이라 패드 9 No 무시`);
     return { ok: d === 'allow_always' && ignored, detail: `답 ${d} · 무시 기록 ${ignored}` };
   });
 
@@ -213,11 +214,13 @@ async function runAll(logPath) {
     return { ok: d === 'deny', detail: `답 ${d}` };
   });
 
-  await t('4 Codex · 단추 Yes all → allow_always (훅이 allow 로 바꿈)', async () => {
-    const s = await sendToPcApp(path, base({ cli: 'codex', yes_all: 'Codex 는 이번만 허용', tool: 'test:click:always@1200' }), now() + 60000);
+  await t('4 Codex · 단추 Yes · No 둘 · 패드 8(F20) = Yes → allow', async () => {
+    const r = base({ cli: 'codex', yes_all: 'Codex 는 이번만 허용', tool: 'test:key:F20@1200', timeout_ms: 60000 });
+    const s = await sendToPcApp(path, r, now() + 60000);
     const d = await race(s.answer, 5000);
     s.close();
-    return { ok: d === 'allow_always', detail: `답 ${d}` };
+    const two = log().includes(`] 보임 ${r.request_id} tool=test:key:F20@1200 대기=0 단추=Yes·No `);
+    return { ok: d === 'allow' && two, detail: `답 ${d} · 단추 둘 ${two}` };
   });
 
   await t('5 두 창 동시 — 한 건씩 · 답은 제 연결로 · 대기 1건 · 다음 건도 1초', async () => {
@@ -234,7 +237,7 @@ async function runAll(logPath) {
     ]);
     sa.close();
     sb.close();
-    const waitingShown = log().includes(`${a.request_id} 각본 click:allow · 남은 시간 칸 「`) && /각본 click:allow · 남은 시간 칸 「\d+초 · 대기 1건」/.test(log());
+    const waitingShown = log().includes(`${a.request_id} 각본 click:allow · 남은 시간 칸 「`) && /각본 click:allow · 남은 시간 칸 「\d+초 뒤 팝업만 닫힘 · 터미널에서 답」 · 대기 칸 「뒤에 1건 더」/.test(log());
     const cross = sa.extra.others.length + sb.extra.others.length;
     return { ok: da === 'allow' && db === 'deny' && tb - ta >= 1000 && waitingShown && cross === 0, detail: `A ${da} · B ${db} · 간격 ${tb - ta}ms · 대기 1건 보임 ${waitingShown} · 남의 답 ${cross}` };
   });
@@ -339,7 +342,18 @@ async function runAll(logPath) {
     return { ok: d === undefined && closedByApp && !mid && db === 'allow', detail: `끌 때 답 ${d} · 앱이 끊음 ${closedByApp} · 끈 동안 붙음 ${!!mid} · 켠 뒤 ${db}` };
   });
 
-  await t('16 팝업이 포커스를 가져가지 않음(보임 기록 전부) · 패드 키 잡음', async () => {
+  await t('16 닫기 단추(터미널에서 답) → none · 팝업 닫힘', async () => {
+    const r = base({ tool: 'test:click:none@1200,wait@1700' });
+    const s = await sendToPcApp(path, r, now() + 120000);
+    const d = await race(s.answer, 5000);
+    await sleep(800);
+    s.close();
+    const sent = log().includes(`${r.request_id.slice(0, 8)} 끝 — 터미널에서 답(none) 보냄 · 팝업 닫음`);
+    const hidden = new RegExp(`${r.request_id} 각본 wait · .* 보임=False`).test(log());
+    return { ok: d === 'none' && sent && hidden, detail: `답 ${d} · 기록 ${sent} · 뒤에 팝업 숨음 ${hidden}` };
+  });
+
+  await t('17 팝업이 포커스를 가져가지 않음(보임 기록 전부) · 패드 키 잡음', async () => {
     const l = log();
     const shown = l.split('\n').filter((x) => x.includes('] 보임 '));
     const stole = shown.filter((x) => !x.includes('포커스=안 가져감'));
