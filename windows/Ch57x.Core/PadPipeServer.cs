@@ -34,7 +34,11 @@ public sealed class PadPipeServer : IDisposable
     {
         public readonly CancellationTokenSource Cts = new();
         public readonly List<Conn> Conns = new();
-        public NamedPipeServerStream? FirstListener;
+        /// <summary>
+        /// 지금 연결을 기다리는 인스턴스(처음엔 Start 가 만든 첫 인스턴스). Stop 이 잠금 안에서 바로 닫는다 —
+        /// 취소만 걸면 닫힘이 비동기로 늦어, 곧바로 Start 하면 첫 인스턴스가 거부(NameTaken)됐다(0.3.1 마무리 CI 실측).
+        /// </summary>
+        public NamedPipeServerStream? Waiting;
         /// <summary>살아 있는 서버 인스턴스 수 (듣는 중 + 붙은 것)</summary>
         public int Live;
     }
@@ -102,7 +106,7 @@ public sealed class PadPipeServer : IDisposable
         {
             if (_gen != null) return PadServerStart.Ok;
             g = new Gen();
-            try { g.FirstListener = CreateInstance(_name, first: true); }
+            try { g.Waiting = CreateInstance(_name, first: true); }
             catch (UnauthorizedAccessException) { _log($"권한 질문 파이프 「{_name}」 — 같은 이름을 다른 프로그램이 이미 엶 · 받지 않음"); return PadServerStart.NameTaken; }
             catch (Exception ex) { _log($"권한 질문 파이프 열기 실패: {ex.GetType().Name} — {ex.Message}"); return PadServerStart.Error; }
             g.Live = 1;
@@ -127,8 +131,8 @@ public sealed class PadPipeServer : IDisposable
             _sweep?.Dispose();
             _sweep = null;
             g.Cts.Cancel();
-            try { g.FirstListener?.Dispose(); } catch { }
-            g.FirstListener = null;
+            try { g.Waiting?.Dispose(); } catch { }   // 기다리던 인스턴스를 지금 닫아 이름을 바로 비운다
+            g.Waiting = null;
             conns = g.Conns.ToList();
         }
         foreach (var c in conns) c.Kill();
@@ -141,17 +145,22 @@ public sealed class PadPipeServer : IDisposable
     {
         var ct = g.Cts.Token;
         NamedPipeServerStream? next;
-        lock (_lock) { next = g.FirstListener; g.FirstListener = null; }
+        lock (_lock) next = g.Waiting;   // Start 가 만든 첫 인스턴스 (g.Waiting 에 그대로 — Stop 이 닫을 수 있게)
         while (!ct.IsCancellationRequested)
         {
             if (next == null)
             {
                 try
                 {
-                    bool first;
-                    lock (_lock) first = g.Live == 0;   // 우리 인스턴스가 하나도 없으면 다시 「첫 인스턴스」로 (그 사이 남이 열었으면 거부됨)
-                    next = CreateInstance(_name, first);
-                    lock (_lock) g.Live++;
+                    // 만들기 · 자리 적기를 한 잠금 안에서 — Stop 과 엇갈려 닫히지 않은 인스턴스가 남는 틈이 없게
+                    lock (_lock)
+                    {
+                        if (ct.IsCancellationRequested) break;
+                        bool first = g.Live == 0;   // 우리 인스턴스가 하나도 없으면 다시 「첫 인스턴스」로 (그 사이 남이 열었으면 거부됨)
+                        next = CreateInstance(_name, first);
+                        g.Live++;
+                        g.Waiting = next;
+                    }
                 }
                 catch (UnauthorizedAccessException) { _log("권한 질문 파이프 — 다른 프로그램이 같은 이름을 엶 · 1초 뒤 다시"); await Delay(1000, ct); continue; }
                 catch (IOException) { await Delay(200, ct); continue; }   // 연결 수 한도 — 하나가 끝나기를 기다림
@@ -162,18 +171,22 @@ public sealed class PadPipeServer : IDisposable
             try { await s.WaitForConnectionAsync(ct).ConfigureAwait(false); }
             catch
             {
+                lock (_lock) { if (g.Waiting == s) g.Waiting = null; g.Live--; }
                 s.Dispose();
-                lock (_lock) g.Live--;
                 if (ct.IsCancellationRequested) return;
                 continue;
             }
             var conn = new Conn(this, g, s);
             bool stopped;
-            lock (_lock) { stopped = ct.IsCancellationRequested; if (!stopped) g.Conns.Add(conn); }
+            lock (_lock)
+            {
+                if (g.Waiting == s) g.Waiting = null;
+                stopped = ct.IsCancellationRequested;
+                if (!stopped) g.Conns.Add(conn);
+            }
             if (stopped) { s.Dispose(); return; }
             _ = Task.Run(() => conn.Run(ct));
         }
-        next?.Dispose();
     }
 
     private static async Task Delay(int ms, CancellationToken ct)

@@ -189,6 +189,38 @@ public class PadPipeServerTests
         Assert.NotNull(await ReadLine(b));
     }
 
+    [Fact]
+    public async Task StopThenStart_RightAway_NotNameTaken()
+    {
+        // 0.3.1 마무리 CI 실측: Stop 이 기다리던 인스턴스를 취소만 걸고 바로 닫지 않아, 곧바로 Start 하면 첫 인스턴스가 거부됐다(NameTaken)
+        var name = NewName();
+        var q = new PermissionQueue(keyGuardMs: 0);
+        using var srv = new PadPipeServer(name, q);
+        for (int i = 0; i < 20; i++)
+        {
+            Assert.Equal(PadServerStart.Ok, srv.Start());
+            if (i % 2 == 1) await Task.Delay(20);   // 받기 고리가 첫 인스턴스로 기다리기 시작한 뒤에도
+            srv.Stop();
+        }
+        // 연결을 받은 뒤(받기 고리가 다음 인스턴스를 만들어 기다림) 바로 끄고 켜기
+        for (int i = 0; i < 5; i++)
+        {
+            Assert.Equal(PadServerStart.Ok, srv.Start());
+            using var a = await Connect(name);
+            await Send(a, Perm("R" + i));
+            await Until(() => q.Count == 1);
+            await Task.Delay(20);
+            srv.Stop();
+            await Until(() => q.Count == 0);
+        }
+        Assert.Equal(PadServerStart.Ok, srv.Start());
+        using var b = await Connect(name);
+        await Send(b, Perm("B"));
+        await Until(() => q.Count == 1);
+        q.Answer("B", PadDecision.Allow);
+        Assert.NotNull(await ReadLine(b));
+    }
+
     // ───────────────────────── Windows: 현재 사용자만 · 첫 인스턴스만
 
     [WindowsFact]
